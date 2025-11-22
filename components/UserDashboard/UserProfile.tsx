@@ -31,8 +31,10 @@ interface RoofTopFormData {
   rooftop: {
     area: string;
     type: string;
+    runOffCoefficient: string;
     dwellers: string;
     space: string;
+    soil: string;
   };
 }
 
@@ -62,7 +64,7 @@ const FloatingNavbar = ({
           : "text-white/70 hover:bg-white/10"
       }`}
     >
-      Rooftop
+      Harvest
     </button>
   </div>
 );
@@ -79,7 +81,14 @@ const UserProfile = () => {
   });
 
   const [userRoofTop, setUserRoofTop] = useState<RoofTopFormData>({
-    rooftop: { area: "", type: "", dwellers: "", space: "" },
+    rooftop: {
+      area: "",
+      type: "",
+      runOffCoefficient: "",
+      dwellers: "",
+      space: "",
+      soil: "",
+    },
   });
 
   const [user, setUser] = useState<User | null>(null);
@@ -111,12 +120,23 @@ const UserProfile = () => {
           [name]: value,
         },
       }));
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
+      return;
     }
+
+    // if (name === "state" || name === "city" || name === "address") {
+    //   setFormData((prev) => ({
+    //     ...prev,
+    //     location: {
+    //       ...prev.location,
+    //       [name]: value,
+    //     },
+    //   }));
+    // } else {
+    //   setFormData((prev) => ({
+    //     ...prev,
+    //     [name]: value,
+    //   }));
+    // }
   };
 
   // Rooftop handler is okay
@@ -126,147 +146,183 @@ const UserProfile = () => {
     >
   ) => {
     const { name, value } = e.target;
-    setRooftopFormData((prev) => ({
-      ...prev,
-      rooftop: {
-        ...prev.rooftop,
-        [name]: value,
-      },
-    }));
+
+    setRooftopFormData((prev) => {
+      let newRunoff = prev.rooftop.runOffCoefficient; // keep existing by default
+
+      if (name === "type") {
+        newRunoff =
+          value === "Flat"
+            ? "0.7"
+            : value === "Sloped"
+            ? "0.9"
+            : value === "Asbestos"
+            ? "0.6"
+            : value === "Metal Sheet Roof"
+            ? "0.8"
+            : value === "Bamboo Roof"
+            ? "0.5"
+            : "0.0";
+      }
+
+      return {
+        ...prev,
+        rooftop: {
+          ...prev.rooftop,
+          [name]: value,
+          runOffCoefficient: newRunoff,
+        },
+      };
+    });
+
+    console.log(name, value);
   };
 
-  // Submit profile
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onAuthStateChanged(auth, async (currentUser) => {
-      if (!currentUser) return;
-      const docRef = doc(firestore, "users", currentUser.uid);
-      await updateDoc(docRef, {
-        username: formData.username || currentUser.displayName || "",
-        fullName: formData.fullName,
-        phoneNumber: formData.phoneNumber,
-        location: {
-          state: formData.location.state,
-          city: formData.location.city,
-          address: formData.location.address,
-        },
-        geopoint: [latitude, longitude],
-      });
+    if (!user) return;
 
-      if (formData.username) {
-        await updateProfile(currentUser, {
-          displayName: formData.username,
-        });
-      }
+    const docRef = doc(firestore, "users", user.uid);
+    const snap = await getDoc(docRef);
 
-      const docsSnap = await getDoc(docRef);
-      if (docsSnap.exists()) {
-        const data = docsSnap.data() as FormData;
-        setUserProfile(data);
-        setFormData(data);
-      }
+    const payload = {
+      username: formData.username || user.displayName || "",
+      fullName: formData.fullName || "",
+      phoneNumber: formData.phoneNumber || "",
+      location: {
+        state: formData.location.state || "",
+        city: formData.location.city || "",
+        address: formData.location.address || "",
+      },
+      geopoint: [
+        latitude !== null ? latitude : 0,
+        longitude !== null ? longitude : 0,
+      ],
+    };
 
-      setSubmitted(true);
-      setTimeout(() => setSubmitted(false), 3000);
-    });
+    if (!snap.exists()) await setDoc(docRef, payload);
+    else await updateDoc(docRef, payload);
+
+    if (formData.username && formData.username !== user.displayName) {
+      await updateProfile(user, { displayName: formData.username });
+    }
+
+    const updatedSnap = await getDoc(docRef);
+
+    if (updatedSnap.exists()) {
+      const data = updatedSnap.data() as FormData;
+      setUserProfile(data);
+      setFormData(data);
+    }
+
+    setSubmitted(true);
+    setTimeout(() => setSubmitted(false), 2500);
   };
 
   // Submit rooftop
-  const handleRooftopSubmit = (e: React.FormEvent) => {
+  const handleRooftopSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onAuthStateChanged(auth, async (currentUser) => {
-      if (!currentUser) return;
-      try {
-        const docRef = doc(firestore, "users", currentUser.uid);
-        await setDoc(
-          docRef,
-          {
-            rooftop: rooftopFormData.rooftop,
-          },
-          { merge: true }
-        );
+    if (!user) return;
 
-        const docsSnap = await getDoc(docRef);
-        if (docsSnap.exists()) {
-          const data = docsSnap.data();
-          if (data?.rooftop) {
-            setUserRoofTop({ rooftop: data.rooftop });
-            setRooftopFormData({ rooftop: data.rooftop });
-          } else {
-            setUserRoofTop({
-              rooftop: { area: "", type: "", dwellers: "", space: "" },
-            });
-            setRooftopFormData({
-              rooftop: { area: "", type: "", dwellers: "", space: "" },
-            });
-          }
-        }
-        setRooftopSubmitted(true);
-        setTimeout(() => setRooftopSubmitted(false), 3000);
-      } catch (e) {
-        console.log("Error saving rooftop:", e);
-      }
-    });
+    const docRef = doc(firestore, "users", user.uid);
+
+    await setDoc(docRef, { rooftop: rooftopFormData.rooftop }, { merge: true });
+
+    const snap = await getDoc(docRef);
+
+    if (snap.exists()) {
+      const data = snap.data();
+      setUserRoofTop({ rooftop: data.rooftop });
+      setRooftopFormData({ rooftop: data.rooftop });
+    }
+
+    setRooftopSubmitted(true);
+    setTimeout(() => setRooftopSubmitted(false), 2500);
   };
+
+  // AUTO-DETECT LOCATION IN BACKGROUND
+  useEffect(() => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setLatitude(pos.coords.latitude);
+          setLongitude(pos.coords.longitude);
+        },
+        () => {
+          setLatitude(0);
+          setLongitude(0);
+        }
+      );
+    } else {
+      setLatitude(0);
+      setLongitude(0);
+    }
+  }, []);
 
   // Fetch user on mount
   useEffect(() => {
-    const fetchUser = async () => {
-      onAuthStateChanged(auth, async (currentUser) => {
-        if (!currentUser) return;
-        else {
-          const isGoogle = currentUser.providerData.some(
-            (p) => p.providerId === "google.com"
-          );
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (!currentUser) {
+        setUser(null);
+        return;
+      }
 
-          if (isGoogle || currentUser.emailVerified) {
-            setUser(currentUser);
-            if (currentUser.photoURL) setPhoto(currentUser.photoURL);
-          } else setUser(null);
+      setUser(currentUser);
+      if (currentUser.photoURL) setPhoto(currentUser.photoURL);
 
-          const docRef = doc(firestore, "users", currentUser.uid);
-          const docSnap = await getDoc(docRef);
+      const docRef = doc(firestore, "users", currentUser.uid);
+      const snap = await getDoc(docRef);
 
-          if (docSnap.exists()) {
-            const userData = docSnap.data() as FormData & RoofTopFormData;
-            setUserProfile({
-              username: userData.username || "",
-              fullName: userData.fullName || "",
-              email: userData.email || "",
-              phoneNumber: userData.phoneNumber || "",
-              location: {
-                state: userData.location?.state || "",
-                city: userData.location?.city || "",
-                address: userData.location?.address || "",
-              },
-            });
-            setFormData({
-              username: userData.username || "",
-              fullName: userData.fullName || "",
-              email: userData.email || "",
-              phoneNumber: userData.phoneNumber || "",
-              location: {
-                state: userData.location?.state || "",
-                city: userData.location?.city || "",
-                address: userData.location?.address || "",
-              },
-            });
-            if (userData.rooftop) {
-              setUserRoofTop({ rooftop: userData.rooftop });
-              setRooftopFormData({ rooftop: userData.rooftop });
-            } else {
-              setUserRoofTop({
-                rooftop: { area: "", type: "", dwellers: "", space: "" },
-              });
-              setRooftopFormData({
-                rooftop: { area: "", type: "", dwellers: "", space: "" },
-              });
-            }
-          }
-        }
-      });
-    };
-    fetchUser();
+      if (snap.exists()) {
+        const data = snap.data() as FormData & RoofTopFormData;
+
+        setUserProfile({
+          username: data.username || "",
+          fullName: data.fullName || "",
+          email: data.email || "",
+          phoneNumber: data.phoneNumber || "",
+          location: {
+            state: data.location?.state || "",
+            city: data.location?.city || "",
+            address: data.location?.address || "",
+          },
+        });
+
+        setFormData({
+          username: data.username || "",
+          fullName: data.fullName || "",
+          email: data.email || "",
+          phoneNumber: data.phoneNumber || "",
+          location: {
+            state: data.location?.state || "",
+            city: data.location?.city || "",
+            address: data.location?.address || "",
+          },
+        });
+
+        setUserRoofTop({
+          rooftop: data.rooftop || {
+            area: "",
+            type: "",
+            dwellers: "",
+            space: "",
+            soil: "",
+          },
+        });
+
+        setRooftopFormData({
+          rooftop: data.rooftop || {
+            area: "",
+            type: "",
+            dwellers: "",
+            space: "",
+            soil: "",
+          },
+        });
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
   // Detect location
@@ -289,14 +345,14 @@ const UserProfile = () => {
           setFormData((prev) => ({
             ...prev,
             location: {
-              ...prev.location,
-              state: data.address.state || "",
+              state: prev.location.state || data.address.state || "",
               city:
+                prev.location.city ||
                 data.address.city ||
                 data.address.town ||
                 data.address.village ||
                 "",
-              address: data.display_name || "",
+              address: prev.location.address || data.display_name || "",
             },
           }));
         } catch (error) {
@@ -481,114 +537,207 @@ const UserProfile = () => {
         {activeTab === "rooftop" && (
           <div className="relative bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-6 shadow-lg transition hover:shadow-indigo-400/40">
             <h2 className="text-2xl font-semibold text-white mb-6">
-              🌇 Rooftop Details
+              🌇 Rooftop Rainwater Harvesting
             </h2>
+
             {rooftopSubmitted && (
               <div className="mb-4 p-3 bg-green-500/20 text-green-200 rounded-lg animate-pulse">
                 ✅ Rooftop details submitted successfully!
               </div>
             )}
+
             <form
-              className="flex flex-col gap-5 pb-3"
+              className="flex flex-col gap-6 pb-3"
               onSubmit={handleRooftopSubmit}
             >
+              {/* Basic Rooftop Inputs */}
               <div className="flex gap-5 max-w-full items-center">
                 <div className="flex flex-col gap-2 w-[50%]">
-                  <label>RoofTop Area (sq. ft.)</label>
+                  <label>RoofTop Area (sq. ft.)*</label>
                   <input
                     type="text"
                     name="area"
-                    placeholder="Rooftop Area (sq. ft.)"
+                    placeholder="Enter rooftop area"
                     value={rooftopFormData.rooftop.area}
                     onChange={handleRooftopChange}
-                    className="bg-white/10 text-white placeholder-white/50 border border-white/30 rounded-xl p-3 focus:ring-2 focus:ring-pink-400 outline-none"
+                    className="bg-white/10 text-white placeholder-white/50 border border-white/30 rounded-xl p-3 focus:ring-2 focus:ring-indigo-400 outline-none"
                     required
                   />
                 </div>
+
                 <div className="flex flex-col gap-2 w-[50%]">
-                  <label>RoofTop Type</label>
+                  <label>RoofTop Type*</label>
                   <div className="relative w-full">
                     <select
                       name="type"
                       value={rooftopFormData.rooftop.type}
                       onChange={handleRooftopChange}
-                      required
                       className="appearance-none w-full p-3 pr-10 rounded-xl bg-gradient-to-r from-indigo-500/20 to-pink-500/20 
-                  text-white font-medium border border-white/30 shadow-md backdrop-blur-md 
-                  focus:ring-2 focus:ring-pink-400 outline-none transition-all duration-300"
+                text-white border border-white/30 shadow-md backdrop-blur-md 
+                focus:ring-2 focus:ring-indigo-400 outline-none"
+                      required
                     >
                       <option value="" className="bg-white/100 text-gray-900">
-                        🌇 Select Rooftop Type
+                        Select Rooftop Type
                       </option>
-                      <option
-                        value="Flat"
-                        className="bg-white/100 text-gray-900"
-                      >
+                      <option value="Flat" className="bg-white text-gray-900">
                         Flat
                       </option>
-                      <option
-                        value="Sloped"
-                        className="bg-white/100 text-gray-900"
-                      >
+                      <option value="Sloped" className="bg-white text-gray-900">
                         Sloped
                       </option>
                       <option
                         value="Asbestos"
-                        className="bg-white/100 text-gray-900"
+                        className="bg-white text-gray-900"
                       >
                         Asbestos
                       </option>
                       <option
                         value="Metal Sheet Roof"
-                        className="bg-white/100 text-gray-900"
+                        className="bg-white text-gray-900"
                       >
                         Metal Sheet Roof
                       </option>
                       <option
                         value="Bamboo Roof"
-                        className="bg-white/100 text-gray-900"
+                        className="bg-white text-gray-900"
                       >
                         Bamboo Roof
                       </option>
                     </select>
-                    {/* Dropdown Arrow */}
+
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/70 pointer-events-none">
                       ▼
                     </span>
                   </div>
                 </div>
               </div>
+
+              {/* Dwellers + Space */}
               <div className="flex gap-5 max-w-full items-center">
                 <div className="flex flex-col gap-2 w-[50%]">
-                  <label>Number of Dwellers</label>
+                  <label>Number of Dwellers*</label>
                   <input
                     type="text"
                     name="dwellers"
-                    placeholder="Number of Dwellers"
+                    placeholder="How many people live here?"
                     value={rooftopFormData.rooftop.dwellers}
                     onChange={handleRooftopChange}
-                    className="bg-white/10 text-white placeholder-white/50 border border-white/30 rounded-xl p-3 focus:ring-2 focus:ring-pink-400 outline-none"
+                    className="bg-white/10 text-white placeholder-white/50 border border-white/30 rounded-xl p-3 focus:ring-2 focus:ring-indigo-400 outline-none"
                     required
                   />
                 </div>
+
                 <div className="flex flex-col gap-2 w-[50%]">
-                  <label>Available Space (sq. ft.)</label>
+                  <label>Available Space (sq. ft.)*</label>
                   <input
                     type="text"
                     name="space"
-                    placeholder="Open Available Space (sq. ft.)"
+                    placeholder="Open area for tank or pit"
                     value={rooftopFormData.rooftop.space}
                     onChange={handleRooftopChange}
-                    className="bg-white/10 text-white placeholder-white/50 border border-white/30 rounded-xl p-3 focus:ring-2 focus:ring-pink-400 outline-none"
+                    className="bg-white/10 text-white placeholder-white/50 border border-white/30 rounded-xl p-3 focus:ring-2 focus:ring-indigo-400 outline-none"
                     required
                   />
                 </div>
               </div>
+
+              {/* Soil Type - Mandatory for recharge pit */}
+              <div className="flex flex-col gap-2 w-full">
+                <label>Soil Type (Optional)</label>
+                <select
+                  name="soil"
+                  value={rooftopFormData.rooftop.soil}
+                  onChange={handleRooftopChange}
+                  className="p-3 rounded-xl bg-white/10 text-white placeholder-white/60 border border-white/30 
+          focus:ring-2 focus:ring-indigo-400 outline-none w-full"
+                >
+                  <option value="" className="text-gray-900">
+                    Select Soil Type
+                  </option>
+                  <option value="Sandy" className="text-gray-900">
+                    Sandy
+                  </option>
+                  <option value="Loamy" className="text-gray-900">
+                    Loamy
+                  </option>
+                  <option value="Clay" className="text-gray-900">
+                    Clay
+                  </option>
+                  <option value="Silty" className="text-gray-900">
+                    Silty
+                  </option>
+                  <option value="Rocky" className="text-gray-900">
+                    Rocky
+                  </option>
+                </select>
+              </div>
+
+              {/* Demand Coverage Inputs */}
+              <div className="mt-4 p-4 rounded-2xl bg-white/5 border border-white/20">
+                <h3 className="text-lg font-semibold text-white mb-3">
+                  💧 Water Demand
+                </h3>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2">
+                    <label>Daily Water Consumption per Person (L)</label>
+                    <input
+                      type="number"
+                      name="perPerson"
+                      placeholder="E.g., 135"
+                      className="bg-white/10 text-white placeholder-white/50 border border-white/30 rounded-xl p-3"
+                      onChange={handleRooftopChange}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label>Days of Backup Required</label>
+                    <input
+                      type="number"
+                      name="days"
+                      placeholder="E.g., 3 Days"
+                      className="bg-white/10 text-white placeholder-white/50 border border-white/30 rounded-xl p-3"
+                      onChange={handleRooftopChange}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2 col-span-2">
+                    <label>Usage Priority</label>
+                    <select
+                      name="priority"
+                      className="p-3 rounded-xl bg-white/10 text-white border border-white/30 
+              focus:ring-2 focus:ring-indigo-400 outline-none"
+                      onChange={handleRooftopChange}
+                    >
+                      <option value="" className="text-gray-900">
+                        Select Priority
+                      </option>
+                      <option value="Full Household" className="text-gray-900">
+                        Full Household
+                      </option>
+                      <option value="Kitchen Only" className="text-gray-900">
+                        Kitchen Only
+                      </option>
+                      <option value="Bathroom Only" className="text-gray-900">
+                        Bathroom Only
+                      </option>
+                      <option
+                        value="Garden / Cleaning"
+                        className="text-gray-900"
+                      >
+                        Garden / Cleaning
+                      </option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
               <button
                 type="submit"
                 className="mt-4 bg-gradient-to-r from-indigo-500 to-pink-500 text-white font-semibold py-3 rounded-xl shadow-md hover:opacity-90 transition cursor-pointer"
               >
-                Submit Rooftop Details
+                Submit All Details
               </button>
             </form>
           </div>

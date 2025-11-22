@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, onSnapshot } from "firebase/firestore";
 import { firestore } from "@/firebase";
+import { useRouter } from "next/navigation";
 
 interface User {
   id: string;
@@ -13,7 +14,7 @@ interface User {
   location: {
     address: string;
   };
-  proUser: true; // replaces score
+  mode: string;
 }
 
 const Users = () => {
@@ -21,43 +22,47 @@ const Users = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
 
-  // 🔹 Fetch users from Firestore
+  const route = useRouter();
+
+  // 🔥 REAL-TIME FIRESTORE SUBSCRIPTION
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const usersCollection = collection(firestore, "users");
-        const snapshot = await getDocs(usersCollection);
+    const usersCollection = collection(firestore, "users");
 
-        const usersData = snapshot.docs.map(
-          (doc) => ({ id: doc.id, ...doc.data() } as User)
-        );
+    const unsubscribe = onSnapshot(usersCollection, (snapshot) => {
+      const updatedUsers = snapshot.docs.map((doc) => {
+        const data = doc.data();
 
-        setUsers(usersData);
-      } catch (error) {
-        console.error("Error fetching users:", error);
-      }
-    };
+        return {
+          id: doc.id,
+          fullName: data.fullName || "",
+          email: data.email || "",
+          phoneNumber: data.phoneNumber || "",
+          status: data.status || "Pending",
+          location: { address: data.location?.address || "" },
+          mode: data.mode || "free",
+        };
+      });
 
-    fetchUsers();
+      setUsers(updatedUsers);
+    });
+
+    // 🔥 Cleanup subscription when leaving page
+    return () => unsubscribe();
   }, []);
 
   // 🔎 Filtering logic
   const filteredUsers = users.filter((user) => {
-    const name = user.fullName || "";
-    const email = user.email || "";
+    const name = user.fullName.toLowerCase();
+    const email = user.email.toLowerCase();
+    const query = searchQuery.toLowerCase();
 
-    const matchesSearch =
-      name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      email.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = name.includes(query) || email.includes(query);
 
     const matchesStatus =
-      statusFilter === "All" || user.status === statusFilter;
+      statusFilter === "All" || user.status === statusFilter.toLowerCase();
 
     return matchesSearch && matchesStatus;
   });
-
-  // 🌟 Pro Users
-  const proUsers = users.filter((user) => user.proUser).slice(0, 3);
 
   return (
     <div className="p-6 rounded-2xl bg-white/10 backdrop-blur-md shadow-lg">
@@ -76,25 +81,23 @@ const Users = () => {
         />
 
         {/* Status Filter */}
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <select
-              id="statusFilter"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="appearance-none px-4 py-2 pr-10 rounded-lg bg-gray-800 text-gray-200 border border-gray-700 
-                 focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-green-400 text-sm"
-            >
-              <option value="All">All Status</option>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-              <option value="Pending">Pending</option>
-              <option value="Blocked">Blocked</option>
-            </select>
-            <span className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400">
-              ▼
-            </span>
-          </div>
+        <div className="relative">
+          <select
+            id="statusFilter"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="appearance-none px-4 py-2 pr-10 rounded-lg bg-gray-800 text-gray-200 border border-gray-700 
+            focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-green-400 text-sm"
+          >
+            <option value="All">All Status</option>
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+            <option value="Pending">Pending</option>
+            <option value="Blocked">Blocked</option>
+          </select>
+          <span className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400">
+            ▼
+          </span>
         </div>
       </div>
 
@@ -108,10 +111,11 @@ const Users = () => {
               <th className="px-4 py-3">📱 Phone Number</th>
               <th className="px-4 py-3">🏠 Address</th>
               <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3 text-center">Pro</th>
+              <th className="px-4 py-3 text-center">Mode</th>
               <th className="px-4 py-3 text-center">Actions</th>
             </tr>
           </thead>
+
           <tbody>
             {filteredUsers.length > 0 ? (
               filteredUsers.map((user) => (
@@ -123,6 +127,7 @@ const Users = () => {
                   <td className="px-4 py-3">{user.email}</td>
                   <td className="px-10 py-3">{user.phoneNumber}</td>
                   <td className="px-4 py-3">{user.location.address}</td>
+
                   <td className="px-4 py-3">
                     <span
                       className={`px-2 py-1 rounded-lg text-xs ${
@@ -136,24 +141,26 @@ const Users = () => {
                       {user.status}
                     </span>
                   </td>
-                  {/* <td className="px-4 py-3">{user.joined}</td> */}
-                  <td className="px-4 py-3 text-center">
-                    {user.proUser ? (
-                      <span className="px-2 py-1 rounded-lg bg-green-500/20 text-green-400 text-xs">
-                        ✅ Pro
-                      </span>
-                    ) : (
-                      <span className="px-2 py-1 rounded-lg bg-gray-600/30 text-gray-400 text-xs">
-                        ❌ Free
-                      </span>
-                    )}
-                  </td>
+
+                  <td className="px-4 py-3 text-center">{user.mode}</td>
+
                   <td className="px-4 py-3 text-center space-x-2">
-                    <button className="px-3 py-1 rounded-lg bg-sky-500/20 text-sky-300 hover:bg-sky-500/30">
-                      View
-                    </button>
-                    <button className="px-3 py-1 rounded-lg bg-red-500/20 text-red-300 hover:bg-red-500/30">
-                      Block
+                    {/* ENABLE only when mode is NOT free */}
+                    <button
+                      disabled={user.mode === "free"}
+                      className={`px-3 py-1 rounded-lg text-sky-300 
+      ${
+        user.mode === "free"
+          ? "bg-gray-600/30 text-gray-400 cursor-not-allowed"
+          : "bg-sky-500/20 hover:bg-sky-500/30 cursor-pointer"
+      }`}
+                      onClick={() => {
+                        if (user.mode !== "free") {
+                          route.push(`adminDashboard/${user.id}`);
+                        }
+                      }}
+                    >
+                      {user.mode === "free" ? "Not Installed" : "View"}
                     </button>
                   </td>
                 </tr>

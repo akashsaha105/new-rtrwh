@@ -13,14 +13,17 @@ import {
 import { EyeIcon, EyeSlashIcon, XMarkIcon } from "@heroicons/react/24/solid";
 import {
   createUserWithEmailAndPassword,
+  GoogleAuthProvider,
   sendEmailVerification,
   signInWithPopup,
   updateProfile,
 } from "firebase/auth";
 import { motion } from "framer-motion";
-import { auth } from "@/firebase";
+import { auth, firestore } from "@/firebase";
 import { FirebaseError } from "firebase/app";
-import { googleProvider } from "@/firebase";
+import { useRouter } from "next/navigation";
+import { doc, runTransaction, setDoc } from "firebase/firestore";
+// import { googleProvider } from "@/firebase";
 
 function getUsernameFromEmail(email: string | null): string {
   if (!email) return "";
@@ -28,11 +31,31 @@ function getUsernameFromEmail(email: string | null): string {
   return atIndex === -1 ? email : email.substring(0, atIndex);
 }
 
+// Generates a custom UID like rtrw-1, rtrw-2 safely
+async function generateCustomUID(): Promise<string> {
+  const counterRef = doc(firestore, "counters", "userCounter");
+
+  const customUID = await runTransaction(firestore, async (transaction) => {
+    const counterSnap = await transaction.get(counterRef);
+    let nextNumber = 1;
+
+    if (counterSnap.exists()) {
+      nextNumber = (counterSnap.data().lastNumber || 0) + 1;
+    }
+
+    transaction.set(counterRef, { lastNumber: nextNumber });
+    return `USR${nextNumber}`;
+  });
+
+  return customUID;
+}
+
 const SignupModal = () => {
   const isOpen = useSelector(
     (state: RootState) => state.modals.signupModalIsOpen
   );
   const dispatch: AppDispatch = useDispatch();
+  const route = useRouter();
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -60,6 +83,27 @@ const SignupModal = () => {
         displayName: getUsernameFromEmail(email),
       });
 
+      const customUID = await generateCustomUID();
+      // ==================================================================
+      // 🔥 CREATE FIRESTORE USER DOCUMENT IMMEDIATELY AFTER SIGNUP
+      // ==================================================================
+      const docRef = doc(firestore, "users", user.uid);
+      await setDoc(docRef, {
+        username: getUsernameFromEmail(email),
+        email: email,
+        fullName: "",
+        phoneNumber: "",
+        location: {
+          state: "",
+          city: "",
+          address: "",
+        },
+        status: "inactive",
+        createdAt: new Date(),
+        uid: customUID,
+      });
+      // ==================================================================
+
       // Send email verification immediately
       await sendEmailVerification(user);
       setLoading(true);
@@ -86,9 +130,92 @@ const SignupModal = () => {
       setLoading(false);
     }
 
-    setEmail("")
-    setPassword("")
-    setConfirmPassword("")
+    setEmail("");
+    setPassword("");
+    setConfirmPassword("");
+  };
+
+  // ------------------------------------------------------
+  // 🔥 GOOGLE SIGNUP — AUTO USERNAME + displayName update
+  // ------------------------------------------------------
+
+  const handleGoogleSignup = async () => {
+    try {
+      setLoading(true);
+
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+
+      const user = result.user;
+
+      const customUID = await generateCustomUID();
+
+      // If Google doesn't give a name, generate from email
+      const generatedName = getUsernameFromEmail(user.email);
+      await updateProfile(user, { displayName: generatedName });
+
+      // ============================================================
+      // 🔥 CREATE FIRESTORE USER DOCUMENT AFTER GOOGLE SIGNUP
+      // ============================================================
+      const docRef = doc(firestore, "users", user.uid);
+      await setDoc(
+        docRef,
+        {
+          username: generatedName,
+          email: user.email || "",
+          fullName: user.displayName || "",
+          phoneNumber: user.phoneNumber || "",
+          photoURL: user.photoURL || "",
+          location: {
+            state: "",
+            city: "",
+            address: "",
+          },
+          mode: "free",
+          status: "inactive",
+          createdAt: new Date(),
+          uid: customUID,
+        },
+        { merge: true }
+      );
+      // ============================================================
+
+      // alert("Signup successful!");
+      dispatch(closeSignupModal());
+      route.push("/en/dashboard");
+    } catch (error) {
+      handleAuthErrors(error as FirebaseError);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ------------------------------------------------------
+  // 🔧 Helper: Reset all fields
+  // ------------------------------------------------------
+  // const resetFields = () => {
+  //   setEmail("");
+  //   setPassword("");
+  //   setConfirmPassword("");
+  // };
+
+  // ------------------------------------------------------
+  // 🔧 Helper: Handle all Firebase errors
+  // ------------------------------------------------------
+  const handleAuthErrors = (err: FirebaseError) => {
+    switch (err.code) {
+      case "auth/email-already-in-use":
+        alert("This email is already registered. Please log in instead.");
+        break;
+      case "auth/invalid-email":
+        alert("Invalid email format.");
+        break;
+      case "auth/weak-password":
+        alert("Password must be at least 6 characters.");
+        break;
+      default:
+        alert(err.message);
+    }
   };
 
   // if (loading) return <LoadingPage />;
@@ -214,8 +341,9 @@ const SignupModal = () => {
 
             {/* Social Signup */}
             <button
-              onClick={async () => await signInWithPopup(auth, googleProvider)}
-              className="w-full flex items-center justify-center gap-2 border border-gray-700 bg-gray-800/80 text-gray-300 py-2 rounded-lg hover:bg-gray-700 transition"
+              // onClick={async () => await signInWithPopup(auth, googleProvider)}
+              onClick={() => handleGoogleSignup()}
+              className="w-full flex items-center justify-center gap-2 border border-gray-700 bg-gray-800/80 text-gray-300 py-2 rounded-lg hover:bg-gray-700 transition cursor-pointer"
             >
               <img
                 src="https://www.svgrepo.com/show/475656/google-color.svg"

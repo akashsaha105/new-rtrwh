@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { MessageCircle, UserCircle2, Send, ArrowDown, X } from "lucide-react";
@@ -10,21 +11,8 @@ import {
   query,
   orderBy,
   onSnapshot,
-  DocumentData,
 } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
-
-interface Reply {
-  id: string;
-  text: string;
-  senderId: string;
-  senderName: string;
-  senderPhotoURL?: string | null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  timestamp?: any;
-  replyToName?: string;
-  replyToText?: string;
-}
 
 interface Message {
   id: string;
@@ -32,9 +20,18 @@ interface Message {
   senderId: string;
   senderName: string;
   senderPhotoURL?: string | null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  timestamp?: any;
-  replies?: Reply[];
+  timestamp?: unknown;
+}
+
+interface Reply {
+  id: string;
+  text: string;
+  senderId: string;
+  senderName: string;
+  senderPhotoURL?: string | null;
+  timestamp?: unknown;
+  replyToName?: string;
+  replyToText?: string;
 }
 
 interface OnlineUser {
@@ -46,175 +43,135 @@ interface OnlineUser {
 const Community = () => {
   const [messageQuery, setMessageQuery] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
+  const [replies, setReplies] = useState<Record<string, Reply[]>>({});
   const [user, setUser] = useState<User | null>(null);
-  const [showScrollButton, setShowScrollButton] = useState(false);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
+  const [showScrollButton, setShowScrollButton] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
-  const isUserScrolling = useRef(false);
 
-  // Listen to auth state
+  // Auth listener
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) =>
-      setUser(currentUser)
-    );
-    return () => unsubscribe();
+    return onAuthStateChanged(auth, setUser);
   }, []);
 
-  // Listen to messages and replies
+  // Main messages listener
   useEffect(() => {
-    const messagesCol = collection(firestore, "messages");
-    const q = query(messagesCol, orderBy("timestamp", "asc"));
+    const q = query(collection(firestore, "messages"), orderBy("timestamp", "asc"));
+    return onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Message));
+      setMessages(data);
+    });
+  }, []);
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const msgs: Message[] = snapshot.docs.map((doc) => {
-        const data = doc.data() as DocumentData;
-        return {
+  // Replies listener (global, not nested)
+  useEffect(() => {
+    const q = query(collection(firestore, "replies"), orderBy("timestamp", "asc"));
+    return onSnapshot(q, (snapshot) => {
+      const grouped: Record<string, Reply[]> = {};
+      snapshot.docs.forEach((doc) => {
+        const data = doc.data() as Omit<Reply, "id"> & { messageId: string };
+        const msgId = data.messageId;
+        const reply: Reply = {
           id: doc.id,
           text: data.text,
           senderId: data.senderId,
           senderName: data.senderName,
-          senderPhotoURL: data.senderPhotoURL || null,
+          senderPhotoURL: data.senderPhotoURL,
           timestamp: data.timestamp,
-          replies: [],
+          replyToName: data.replyToName,
+          replyToText: data.replyToText,
         };
+        grouped[msgId] = grouped[msgId] ? [...grouped[msgId], reply] : [reply];
       });
-
-      setMessages(msgs);
-
-      // Setup real-time listeners for replies
-      msgs.forEach((msg) => {
-        const repliesCol = collection(firestore, `messages/${msg.id}/replies`);
-        const replyQuery = query(repliesCol, orderBy("timestamp", "asc"));
-        onSnapshot(replyQuery, (replySnap) => {
-          const replies: Reply[] = replySnap.docs.map((doc) => {
-            const data = doc.data() as DocumentData;
-            return {
-              id: doc.id,
-              text: data.text,
-              senderId: data.senderId,
-              senderName: data.senderName,
-              senderPhotoURL: data.senderPhotoURL || null,
-              timestamp: data.timestamp,
-              replyToName: data.replyToName,
-              replyToText: data.replyToText,
-            };
-          });
-          setMessages((prev) =>
-            prev.map((m) => (m.id === msg.id ? { ...m, replies } : m))
-          );
-          // Scroll only if user is not manually scrolling
-          if (!isUserScrolling.current) scrollToBottom();
-        });
-      });
-
-      if (!isUserScrolling.current) scrollToBottom();
+      setReplies(grouped);
     });
-
-    return () => unsubscribe();
   }, []);
 
-  // Listen to online users
+  // Online users listener
   useEffect(() => {
-    const usersCol = collection(firestore, "users");
-    const unsubscribe = onSnapshot(usersCol, (snapshot) => {
-      const online = snapshot.docs.map((doc) => {
-        const data = doc.data();
-        return {
-          uid: data.uid,
-          fullName: data.fullName || data.username,
-          photoURL: data.photoURL || null,
-        };
-      });
-      setOnlineUsers(online);
+    return onSnapshot(collection(firestore, "users"), (snapshot) => {
+      setOnlineUsers(
+        snapshot.docs.map((d) => ({
+          uid: d.data().uid,
+          fullName: d.data().fullName || "User",
+          photoURL: d.data().photoURL || null,
+        }))
+      );
     });
-    return () => unsubscribe();
   }, []);
 
-  const scrollToBottom = () =>
+  // Auto scroll
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, replies]);
 
   const handleScroll = () => {
-    if (!messagesContainerRef.current) return;
-    const { scrollTop, scrollHeight, clientHeight } =
-      messagesContainerRef.current;
-    isUserScrolling.current = scrollHeight - scrollTop > clientHeight + 50;
-    setShowScrollButton(isUserScrolling.current);
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    setShowScrollButton(container.scrollHeight - container.scrollTop > container.clientHeight + 80);
   };
 
   const handleSend = async () => {
-    if (!messageQuery.trim() || !user) return;
+    if (!user || !messageQuery.trim()) return;
 
-    try {
-      if (replyTo) {
-        await addDoc(collection(firestore, `messages/${replyTo.id}/replies`), {
-          text: messageQuery,
-          senderId: user.uid,
-          senderName: user.displayName || user.email || "Anonymous",
-          senderPhotoURL: user.photoURL || null,
-          timestamp: serverTimestamp(),
-          replyToName: replyTo.senderName,
-          replyToText: replyTo.text,
-        });
-        setReplyTo(null);
-      } else {
-        await addDoc(collection(firestore, "messages"), {
-          text: messageQuery,
-          senderId: user.uid,
-          senderName: user.displayName || user.email || "Anonymous",
-          senderPhotoURL: user.photoURL || null,
-          timestamp: serverTimestamp(),
-        });
-      }
-      setMessageQuery("");
-    } catch (err) {
-      console.error("Error sending message:", err);
+    if (replyTo) {
+      await addDoc(collection(firestore, "replies"), {
+        text: messageQuery,
+        senderId: user.uid,
+        senderName: user.displayName || user.email || "Anonymous",
+        senderPhotoURL: user.photoURL || null,
+        timestamp: serverTimestamp(),
+        replyToName: replyTo.senderName,
+        replyToText: replyTo.text,
+        messageId: replyTo.id,
+      });
+      setReplyTo(null);
+    } else {
+      await addDoc(collection(firestore, "messages"), {
+        text: messageQuery,
+        senderId: user.uid,
+        senderName: user.displayName || user.email || "Anonymous",
+        senderPhotoURL: user.photoURL || null,
+        timestamp: serverTimestamp(),
+      });
     }
+
+    setMessageQuery("");
   };
 
-  const renderAvatar = (
-    photoURL?: string | null,
-    senderId?: string,
-    senderName?: string
-  ) => {
-    if (photoURL)
-      return (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={photoURL}
-          alt={senderName}
-          className="h-8 w-8 rounded-full object-cover"
-        />
-      );
-    const firstLetter = senderName?.[0]?.toUpperCase() || "U";
-    const bgColor = senderId === user?.uid ? "bg-indigo-600" : "bg-sky-500";
-    return (
+  const avatar = (photo: string | null | undefined, name: string, highlight: boolean) =>
+    photo ? (
+      <img src={photo} alt={name} className="h-8 w-8 rounded-full object-cover" />
+    ) : (
       <div
-        className={`w-10 h-10 flex items-center justify-center rounded-full ${bgColor} text-white font-semibold`}
+        className={`w-8 h-8 flex items-center justify-center rounded-full text-white font-semibold ${
+          highlight ? "bg-indigo-600" : "bg-sky-500"
+        }`}
       >
-        {firstLetter}
+        {name[0]?.toUpperCase() || "U"}
       </div>
     );
-  };
 
   return (
     <div className="flex flex-col md:flex-row h-[90vh] bg-gradient-to-br from-indigo-900 via-gray-900 to-black text-white overflow-hidden">
-      <div className="flex-1 flex flex-col p-6 backdrop-blur-lg bg-white/5 shadow-xl relative">
+      {/* Chat Section */}
+      <div className="flex-1 flex flex-col p-6 backdrop-blur-lg bg-white/5 relative">
         <h3 className="text-3xl font-semibold mb-4 flex items-center gap-2">
-          <MessageCircle className="h-7 w-7 text-indigo-400 animate-pulse" />{" "}
-          Community Chat
+          <MessageCircle className="h-7 w-7 text-indigo-400" /> Community Chat
         </h3>
 
         <div
           className="flex-1 overflow-y-auto space-y-4 p-4 rounded-xl bg-white/5 shadow-inner"
           ref={messagesContainerRef}
           onScroll={handleScroll}
-          style={{
-            scrollbarWidth: "none",
-          }}
         >
+          {messages.length === 0 && (
+            <p className="text-center text-gray-400 italic">No messages yet. Start the conversation 👇</p>
+          )}
+
           {messages.map((msg) => (
             <div key={msg.id} className="flex flex-col gap-1">
               <div
@@ -223,90 +180,68 @@ const Community = () => {
                 }`}
               >
                 {msg.senderId !== user?.uid &&
-                  renderAvatar(
-                    msg.senderPhotoURL,
-                    msg.senderId,
-                    msg.senderName
-                  )}
+                  avatar(msg.senderPhotoURL, msg.senderName, false)}
+
                 <div
-                  className={`max-w-lg px-4 py-2 rounded-2xl shadow-md transition transform ${
+                  className={`max-w-lg px-4 py-2 rounded-2xl shadow-md text-sm ${
                     msg.senderId === user?.uid
-                      ? "bg-indigo-600 text-white hover:scale-105"
-                      : "bg-gray-700 text-gray-200 hover:scale-105"
+                      ? "bg-indigo-600 text-white"
+                      : "bg-gray-700 text-gray-200"
                   }`}
                 >
-                  {msg.replies && msg.replies.length > 0 && (
-                    <div className="text-[10px] text-gray-400 mb-1 px-2 py-1 bg-gray-800 rounded">
-                      Replying to{" "}
-                      {msg.replies[msg.replies.length - 1].replyToName}: &quot;
-                      {msg.replies[msg.replies.length - 1].replyToText}&quot;
-                    </div>
-                  )}
-                  <p className="text-sm">{msg.text}</p>
-                  <p className="text-[10px] text-gray-400 mt-1">
-                    {msg.senderName}
-                  </p>
+                  {msg.text}
+                  <p className="text-[10px] text-gray-300 mt-1">{msg.senderName}</p>
                   <button
                     onClick={() => setReplyTo(msg)}
-                    className="text-xs text-indigo-400 mt-1 hover:underline"
+                    className="text-xs text-indigo-300 mt-1 hover:underline"
                   >
                     Reply
                   </button>
                 </div>
+
                 {msg.senderId === user?.uid &&
-                  renderAvatar(
-                    msg.senderPhotoURL,
-                    msg.senderId,
-                    msg.senderName
-                  )}
+                  avatar(msg.senderPhotoURL, msg.senderName, true)}
               </div>
 
               {/* Replies */}
-              {/* Replies */}
-              {msg.replies?.map((r) => (
-                <div key={r.id} className="ml-8 flex items-start gap-3">
+              {replies[msg.id]?.map((r) => (
+                <div key={r.id} className="ml-10 flex items-start gap-3">
                   {r.senderId !== user?.uid &&
-                    renderAvatar(r.senderPhotoURL, r.senderId, r.senderName)}
+                    avatar(r.senderPhotoURL, r.senderName, false)}
+
                   <div
-                    className={`px-3 py-1 rounded-xl text-sm shadow-sm transition transform
-        ${
-          r.senderId === user?.uid
-            ? "bg-indigo-600 text-white hover:scale-105"
-            : "bg-gray-700 text-gray-200 hover:scale-105"
-        }`}
+                    className={`px-3 py-2 rounded-xl text-sm shadow-sm ${
+                      r.senderId === user?.uid ? "bg-indigo-600 text-white" : "bg-gray-700 text-gray-200"
+                    }`}
                   >
-                    {r.replyToName && (
-                      <div className="text-[10px] text-gray-400 mb-1">
-                        Replying to {r.replyToName}: &quot;{r.replyToText}&quot;
-                      </div>
-                    )}
+                    <p className="text-[10px] text-gray-400 mb-1">
+                      Replying to {r.replyToName}: “{r.replyToText}”
+                    </p>
                     {r.text}
-                    <div className="text-[10px] text-gray-300 mt-1">
-                      {r.senderName}
-                    </div>
+                    <p className="text-[10px] text-gray-300 mt-1">{r.senderName}</p>
                   </div>
+
                   {r.senderId === user?.uid &&
-                    renderAvatar(r.senderPhotoURL, r.senderId, r.senderName)}
+                    avatar(r.senderPhotoURL, r.senderName, true)}
                 </div>
               ))}
             </div>
           ))}
-          <div ref={messagesEndRef}></div>
+
+          <div ref={messagesEndRef} />
         </div>
 
         {showScrollButton && (
           <button
-            onClick={scrollToBottom}
-            className="absolute bottom-28 right-6 bg-indigo-600 hover:bg-indigo-700 p-3 rounded-full shadow-lg transition"
+            onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })}
+            className="absolute bottom-28 right-6 bg-indigo-600 hover:bg-indigo-700 p-3 rounded-full shadow-lg"
           >
             <ArrowDown className="h-5 w-5 text-white" />
           </button>
         )}
 
         {replyTo && (
-          <div
-            className={`mb-2 flex items-center gap-2 text-sm text-gray-300 bg-gray-800 px-3 py-1 rounded`}
-          >
+          <div className="mb-2 flex items-center gap-2 text-sm bg-gray-800 px-3 py-2 rounded">
             Replying to {replyTo.senderName}: &quot;{replyTo.text}&quot;
             <button onClick={() => setReplyTo(null)} className="ml-auto">
               <X className="h-4 w-4 text-red-400" />
@@ -314,42 +249,33 @@ const Community = () => {
           </div>
         )}
 
+        {/* Input */}
         <div className="mt-2 relative">
-          <div className="flex items-center gap-3 relative">
-            <input
-              type="text"
-              value={messageQuery}
-              onChange={(e) => setMessageQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSend()}
-              placeholder="Type a message..."
-              className="flex-1 pl-4 pr-12 py-3 rounded-full bg-white/10 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-md"
-            />
-            <button
-              onClick={handleSend}
-              className="absolute right-4 bg-indigo-600 hover:bg-indigo-700 p-2 rounded-full transition shadow-lg"
-            >
-              <Send className="h-5 w-5 text-white" />
-            </button>
-          </div>
+          <input
+            type="text"
+            value={messageQuery}
+            onChange={(e) => setMessageQuery(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            placeholder="Type a message..."
+            className="w-full pl-4 pr-14 py-3 rounded-full bg-white/10 text-white placeholder-white/50 focus:ring-2 focus:ring-indigo-500"
+          />
+          <button
+            onClick={handleSend}
+            className="absolute right-3 top-1/2 -translate-y-1/2 bg-indigo-600 hover:bg-indigo-700 p-2 rounded-full"
+          >
+            <Send className="h-5 w-5 text-white" />
+          </button>
         </div>
       </div>
 
-      {/* Right: Online Users */}
-      <div className="w-full md:w-64 border-l border-white/10 p-6 bg-white/5 backdrop-blur-xl shadow-xl">
+      {/* Online Users */}
+      <div className="w-full md:w-64 border-l border-white/10 p-6 bg-white/5">
         <h4 className="text-xl font-semibold mb-4">Users</h4>
-        <ul className="space-y-4">
+        <ul className="space-y-3">
           {onlineUsers.map((u) => (
-            <li
-              key={u.uid}
-              className="flex items-center gap-3 bg-white/10 p-2 rounded-xl hover:bg-white/20 transition cursor-pointer"
-            >
+            <li key={u.uid} className="flex items-center gap-3 bg-white/10 p-2 rounded-xl">
               {u.photoURL ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={u.photoURL}
-                  alt={u.fullName}
-                  className="h-8 w-8 rounded-full object-cover"
-                />
+                <img src={u.photoURL} alt={u.fullName} className="h-8 w-8 rounded-full object-cover" />
               ) : (
                 <UserCircle2 className="h-8 w-8 text-indigo-400" />
               )}

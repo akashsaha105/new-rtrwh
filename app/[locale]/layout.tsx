@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import './globals.css';
+import "./globals.css";
 import StoreProvider from "@/redux/StoreProvider";
 import { NextIntlClientProvider } from "next-intl";
+import Navbar from "@/components/Navbar";
+import ConditionalNavbar from "@/components/ConditionalNavbar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,7 +18,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "JalYantra",
-  description: "AI-Powered Rainwater Harvesting Solutions for a Sustainable Future",
+  description:
+    "AI-Powered Rainwater Harvesting Solutions for a Sustainable Future",
 };
 
 export default function RootLayout({
@@ -31,6 +34,7 @@ export default function RootLayout({
           <body
             className={`${geistSans.variable} ${geistMono.variable} antialiased`}
           >
+            <ConditionalNavbar />
             {children}
           </body>
         </html>

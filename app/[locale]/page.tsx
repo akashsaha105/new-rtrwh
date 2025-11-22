@@ -34,10 +34,10 @@ export default function Page({ params }: { params: { lang: string } }) {
 
   return (
     <main className="min-h-screen">
-      <Navbar />
+      {/* <Navbar /> */}
 
       {/* Hero Section */}
-      <Hero />
+      <Hero lang={lang}/>
 
       {/* Features Section */}
       <Features />

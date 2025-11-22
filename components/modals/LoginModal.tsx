@@ -112,8 +112,8 @@ const LoginModal = () => {
               dwellers: "",
               space: "",
             },
-            status: "Inactive",
-          });
+            status: "inactive",
+          }, {merge: true});
         }
 
         dispatch(closeLoginModal());

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Search } from "lucide-react";
 
 interface SearchButtonProps {
@@ -8,95 +8,116 @@ interface SearchButtonProps {
 }
 
 const SearchBar: React.FC<SearchButtonProps> = ({ setActiveItem }) => {
-  const [searchQuery, setSearchQuery] = useState("");
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  const [query, setQuery] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const [elements, setElements] = useState<
     { id: string; text: string; tab: string }[]
   >([]);
-  const [filteredElements, setFilteredElements] = useState<typeof elements>([]);
-  const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
+  const [filtered, setFiltered] = useState<typeof elements>([]);
+  const [highlightIndex, setHighlightIndex] = useState(-1);
 
-  // Collect Searchable elements
+  // ------------------------------
+  // MUTATION OBSERVER FIX (MAIN FIX)
+  // ------------------------------
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
     const collectElements = () => {
-      const allElements: { id: string; text: string; tab: string }[] = [];
+      const list: { id: string; text: string; tab: string }[] = [];
 
       document.querySelectorAll("[data-tab]").forEach((el) => {
-        const tab = el.getAttribute("data-tab") || "";
-        const targetEl = el as HTMLElement;
-        if (targetEl.id) {
-          allElements.push({
-            id: targetEl.id,
-            text: targetEl.innerText,
-            tab,
-          });
-        }
+        const target = el as HTMLElement;
+        if (!target.id) return;
+
+        list.push({
+          id: target.id,
+          text: target.innerText.trim(),
+          tab: target.getAttribute("data-tab") || "",
+        });
       });
-      setElements(allElements);
+
+      setElements(list);
     };
 
+    // Initial load
     collectElements();
-    window.addEventListener("resize", collectElements);
-    return () => window.removeEventListener("resize", collectElements);
+
+    // Watch for DOM changes
+    const observer = new MutationObserver(() => {
+      collectElements();
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+
+    return () => observer.disconnect();
   }, []);
 
-  // Filter on query
+  // Filter results when user types
   useEffect(() => {
-    if (searchQuery.trim() === "") {
-      setFilteredElements([]);
-      setHighlightedIndex(-1);
+    if (!query.trim()) {
+      setFiltered([]);
+      setHighlightIndex(-1);
       return;
     }
-    const results = elements.filter((el) =>
-      el.text.toLowerCase().includes(searchQuery.toLowerCase())
+
+    const result = elements.filter((el) =>
+      el.text.toLowerCase().includes(query.toLowerCase())
     );
-    setFilteredElements(results);
-    setHighlightedIndex(results.length > 0 ? 0 : -1);
-  }, [searchQuery, elements]);
 
-  // Smooth scroll
-  const scrollToElement = (target: HTMLElement) => {
-    const tryScroll = () => {
-      if (document.body.contains(target)) {
-        target.scrollIntoView({ behavior: "smooth", block: "center" });
-      } else {
-        requestAnimationFrame(tryScroll);
-      }
-    };
-    tryScroll();
-  };
+    setFiltered(result);
+    setHighlightIndex(result.length ? 0 : -1);
+  }, [query, elements]);
 
-  const handleClick = (id: string, tab: string) => {
+  const scrollToElement = useCallback((id: string) => {
+    const target = document.getElementById(id);
+    if (!target) return;
+
+    target.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+  }, []);
+
+  const selectItem = (id: string, tab: string) => {
     setActiveItem(tab);
-    setTimeout(() => {
-      const target = document.getElementById(id);
-      if (target) scrollToElement(target);
-    }, 100);
-    setSearchQuery("");
+
+    setTimeout(() => scrollToElement(id), 150);
+
+    setQuery("");
+    setFiltered([]);
     setShowDropdown(false);
-    setHighlightedIndex(-1);
+    setHighlightIndex(-1);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!showDropdown || filteredElements.length === 0) return;
+    if (!showDropdown || filtered.length === 0) return;
 
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setHighlightedIndex((prev) =>
-        prev < filteredElements.length - 1 ? prev + 1 : 0
+      setHighlightIndex((prev) =>
+        prev < filtered.length - 1 ? prev + 1 : 0
       );
-    } else if (e.key === "ArrowUp") {
+    }
+
+    if (e.key === "ArrowUp") {
       e.preventDefault();
-      setHighlightedIndex((prev) =>
-        prev > 0 ? prev - 1 : filteredElements.length - 1
+      setHighlightIndex((prev) =>
+        prev > 0 ? prev - 1 : filtered.length - 1
       );
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      if (highlightedIndex >= 0) {
-        const el = filteredElements[highlightedIndex];
-        handleClick(el.id, el.tab);
-      }
-    } else if (e.key === "Escape") {
+    }
+
+    if (e.key === "Enter" && highlightIndex >= 0) {
+      const item = filtered[highlightIndex];
+      selectItem(item.id, item.tab);
+    }
+
+    if (e.key === "Escape") {
       setShowDropdown(false);
     }
   };
@@ -104,35 +125,45 @@ const SearchBar: React.FC<SearchButtonProps> = ({ setActiveItem }) => {
   return (
     <div className="flex-1 flex justify-center px-6 relative z-50">
       <div className="relative w-full max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/60 h-5 w-5" />
+        <Search className="absolute z-10 left-3 top-1/2 -translate-y-1/2 text-teal-500 h-5 w-5 cursor-pointer" onClick={() => inputRef.current?.focus()}/>
+
         <input
+          ref={inputRef}
           type="text"
-          value={searchQuery}
+          value={query}
+          onFocus={() => setShowDropdown(true)}
           onChange={(e) => {
-            setSearchQuery(e.target.value);
+            setQuery(e.target.value);
             setShowDropdown(true);
           }}
           onKeyDown={handleKeyDown}
           placeholder="Search..."
-          className="w-full pl-10 pr-4 py-2 rounded-full bg-white/10 text-white/90 placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-indigo-500 backdrop-blur-sm shadow-md"
+          className="w-full pl-10 pr-4 py-2 rounded-full bg-white/10 text-white/90 
+          placeholder-white/60 focus:outline-none focus:ring-1 focus:ring-teal-500 
+          backdrop-blur-sm shadow-md"
         />
       </div>
 
-      {showDropdown && searchQuery && (
-        <div className="absolute z-50 top-12 w-full max-w-md bg-slate-900/95 backdrop-blur-lg rounded-2xl border border-white/10 shadow-2xl p-2">
-          {filteredElements.length > 0 ? (
+      {showDropdown && query && (
+        <div className="absolute mt-2 top-12 w-full max-w-md 
+        bg-slate-900/95 backdrop-blur-lg rounded-2xl 
+        border border-white/10 shadow-2xl p-2 z-50">
+
+          {filtered.length > 0 ? (
             <ul>
-              {filteredElements.map((el, index) => (
+              {filtered.map((el, index) => (
                 <li
                   key={el.id}
+                  onClick={() => selectItem(el.id, el.tab)}
                   className={`px-4 py-2 rounded-lg cursor-pointer text-white/90 transition ${
-                    index === highlightedIndex
+                    index === highlightIndex
                       ? "bg-indigo-600/60"
                       : "hover:bg-indigo-600/40"
                   }`}
-                  onClick={() => handleClick(el.id, el.tab)}
                 >
-                  {el.text.length > 80 ? el.text.slice(0, 80) + "…" : el.text}
+                  {el.text.length > 80
+                    ? el.text.slice(0, 80) + "…"
+                    : el.text}
                 </li>
               ))}
             </ul>

@@ -78,7 +78,7 @@ const InstallPage: React.FC = () => {
       </div>
 
       {/* ================= Installation Types ================= */}
-      {status == "Inactive" ? <InstallType /> : ""}
+      {status.toLowerCase() == "inactive" ? <InstallType /> : ""}
 
       {/* ================= Recommended Products ================= */}
       <RecommendedProducts />

@@ -49,7 +49,7 @@ const UserInfo: React.FC<UserInfoProps> = ({ collapsed }) => {
       className={`w-full relative rounded-xl px-4 py-3 cursor-pointer
         ${
           !collapsed
-            ? "bg-white/5 backdrop-blur-md border border-white/10 transition-all duration-300 ease-in-out hover:bg-sky-500/20"
+            ? "bg-white/10 backdrop-blur-md transition-all duration-300 ease-in-out hover:bg-teal-500/20"
             : "right-0 p-10 ml-[-11] pe-13"
         } hover:bg-sky-500/20 hover:scale-[1.02]`}
     >

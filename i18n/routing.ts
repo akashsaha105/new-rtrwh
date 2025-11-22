@@ -10,7 +10,7 @@ export const routing = defineRouting({
   pathnames: {
     "/dashboard": {
       en: "/dashboard",
-      hi: "/डैशबोर्ड"
+      hi: "/dashboard"
     }
   }
 })

@@ -10,13 +10,14 @@ import Demo from "@/components/Demo";
 import { AppDispatch } from "@/redux/store";
 import { useDispatch } from "react-redux";
 import { openLoginModal } from "@/redux/slices/modalSlice";
+import Link from "next/link";
 
 function HandleLearnMore() {
   window.location.href =
     "https://cwas.org.in/resources/file_manager/module_3-3_1_rwh_guidelines.pdf";
 }
 
-export default function Hero() {
+export default function Hero({lang} : {lang: string}) {
   // const [isExpanded, setIsExpanded] = useState(false);
   const dispatch: AppDispatch = useDispatch()
 
@@ -68,13 +69,13 @@ export default function Hero() {
             transition={{ delay: 0.4, duration: 0.8 }}
             className="flex flex-col sm:flex-row gap-4"
           >
-            <button
+            <Link
               className="px-8 py-4 bg-gradient-to-r from-[#0077b6] to-[#00b4d8] text-white rounded-xl shadow-glow hover:scale-105 transform transition font-semibold text-lg flex items-center justify-center space-x-2 cursor-pointer"
-              onClick={() => dispatch(openLoginModal())}
+              href={`${lang}/assessment`}
             >
               <Zap className="w-5 h-5" />
               <span>Try Free Assessment</span>
-            </button>
+            </Link>
 
             <button
               className="px-8 py-4 glass border border-gray-600 text-white rounded-xl hover:scale-105 transform transition font-semibold text-lg"

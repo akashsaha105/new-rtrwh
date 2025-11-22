@@ -94,7 +94,7 @@ const SideBar: React.FC<DashboardSideBarProps> = ({
     <aside
       className={`${
         collapsed ? "w-20" : "w-64"
-      } relative z-50 hidden md:flex flex-col p-4 border-r border-white/10 bg-white/5 backdrop-blur-md transition-all duration-300`}
+      } relative z-50 hidden md:flex flex-col p-4 border-r border-white/10 bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800 backdrop-blur-md transition-all duration-300`}
     >
       {/* Sidebar Toggle */}
       <button
@@ -115,7 +115,7 @@ const SideBar: React.FC<DashboardSideBarProps> = ({
             className={`relative flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all group
               ${
                 activeItem === item.id
-                  ? "bg-sky-500/30 text-sky-300"
+                  ? "bg-gradient-to-br from-teal-500/60 to-slate-700/80 text-gray-300"
                   : "bg-white/10 hover:bg-white/20 text-white/80"
               }`}
           >

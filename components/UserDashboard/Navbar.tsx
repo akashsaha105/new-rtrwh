@@ -5,9 +5,11 @@ import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import SearchBar from "../SearchBar";
-import { BellIcon } from "@heroicons/react/24/outline"; // Using Heroicons for clean icons
 import LanguageSwitcher from "../LanguageSwitcher";
-import NotificationBell from "./NotificationBell";
+// import NotificationBell from "./NotificationBell";
+import Notifications from "./Notifications";
+import Reward from "./Reward";
+import RewardBadge from "./Reward";
 
 // Dashboard Header
 interface DashboardHeaderProps {
@@ -23,7 +25,7 @@ const Navbar: React.FC<DashboardHeaderProps> = ({
 }) => {
   const [language, setLanguage] = useState("EN"); // default English
 
-  const [notifications, setNotifications] = useState(3); // Example: 3 unread notifications
+  // const [notifications, setNotifications] = useState(3); // Example: 3 unread notifications
   const router = useRouter();
 
   // ✅ Load language from localStorage on first render
@@ -32,7 +34,7 @@ const Navbar: React.FC<DashboardHeaderProps> = ({
     if (storedLang) {
       setLanguage(storedLang);
     }
-  }, []); 
+  }, []);
 
   console.log(language);
 
@@ -46,14 +48,14 @@ const Navbar: React.FC<DashboardHeaderProps> = ({
   };
 
   return (
-    <header className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-white/5 backdrop-blur-md">
+    <header className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800 backdrop-blur-md">
       {/* Left: Active Section */}
       <div className="flex items-center gap-2 select-none">
         {/* Water droplet icon */}
         <span className="text-3xl animate-bounce text-sky-400">💧</span>
 
         {/* Logo Text */}
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 tracking-wide drop-shadow-lg">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-sky-50 via-sky-500 to-blue-500 tracking-wide drop-shadow-lg">
           JalYantra
         </h1>
       </div>
@@ -66,19 +68,28 @@ const Navbar: React.FC<DashboardHeaderProps> = ({
         <span
           className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full shadow-md transition-all duration-300 cursor-pointer
             ${
-              status.toLowerCase() === "active"
+              status.toLowerCase() === "standard"
+                ? "bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20"
+                : status.toLowerCase() === "pro"
                 ? "bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20"
                 : "bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20"
             }`}
         >
           <span
             className={`w-2.5 h-2.5 rounded-full animate-pulse ${
-              status.toLowerCase() === "active" ? "bg-green-400" : "bg-red-400"
+              status.toLowerCase() === "basic"
+                ? "bg-blue-400"
+                : status.toLowerCase() === "pro"
+                ? "bg-green-400"
+                : "bg-red-400"
             }`}
           ></span>
           {status}
         </span>
 
+        <div className="pr-5">
+          <RewardBadge />
+        </div>
         {/* Notification Icon */}
         {/* <div className="relative">
           <button className="relative p-2 rounded-full bg-white/5 text-white hover:bg-white/10 transition-all duration-300 focus:outline-none cursor-pointer">
@@ -91,16 +102,20 @@ const Navbar: React.FC<DashboardHeaderProps> = ({
           </button>
         </div> */}
 
-        <NotificationBell />  
+        <Notifications />
 
         {/* Language Selector */}
-        <LanguageSwitcher language={language} setLanguage={setLanguage} page="dashboard" />
+        <LanguageSwitcher
+          language={language}
+          setLanguage={setLanguage}
+          page="dashboard"
+        />
 
         {/* Sign Out Button */}
         <button
           onClick={handleSignOut}
           className="relative inline-flex items-center justify-center px-6 py-2 rounded-full text-sm font-semibold 
-                     text-white bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500
+                     text-white bg-gradient-to-r from-cyan-500/90 via-teal-500/90 to-emerald-500/90
                      shadow-lg hover:shadow-indigo-500/50 transition-all duration-300
                      hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-pink-400 cursor-pointer"
         >

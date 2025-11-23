@@ -72,7 +72,7 @@ const Page = () => {
         const unsubscribeSnapshot = onSnapshot(userDocRef, (snapshot) => {
           if (snapshot.exists()) {
             try {
-              const SnapShotStatus = snapshot.data().status;
+              const SnapShotStatus = snapshot.data().status || "inactive";
               setStatus(SnapShotStatus);
 
               const roofTopData = snapshot.data() as RoofTopData;

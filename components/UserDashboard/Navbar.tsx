@@ -67,22 +67,20 @@ const Navbar: React.FC<DashboardHeaderProps> = ({
         {/* Status Badge */}
         <span
           className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full shadow-md transition-all duration-300 cursor-pointer
-            ${
-              status.toLowerCase() === "standard"
-                ? "bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20"
-                : status.toLowerCase() === "pro"
+            ${status.toLowerCase() === "standard"
+              ? "bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20"
+              : status.toLowerCase() === "pro"
                 ? "bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20"
                 : "bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20"
             }`}
         >
           <span
-            className={`w-2.5 h-2.5 rounded-full animate-pulse ${
-              status.toLowerCase() === "basic"
+            className={`w-2.5 h-2.5 rounded-full animate-pulse ${status.toLowerCase() === "basic"
                 ? "bg-blue-400"
                 : status.toLowerCase() === "pro"
-                ? "bg-green-400"
-                : "bg-red-400"
-            }`}
+                  ? "bg-green-400"
+                  : "bg-red-400"
+              }`}
           ></span>
           {status}
         </span>

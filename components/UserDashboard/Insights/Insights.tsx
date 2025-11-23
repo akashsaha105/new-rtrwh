@@ -493,7 +493,7 @@ const Insights = (LastMonthRainfall: LastMonthRainfall) => {
           <Prediction />
         </div>
       </div>
-      {status.toLowerCase() == "inactive" || status.toLowerCase() == "processing" ? <InstallNow /> : ""}
+      {status?.toLowerCase() == "inactive" || status?.toLowerCase() == "processing" ? <InstallNow /> : ""}
     </>
   );
 };

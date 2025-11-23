@@ -17,7 +17,7 @@ function HandleLearnMore() {
     "https://cwas.org.in/resources/file_manager/module_3-3_1_rwh_guidelines.pdf";
 }
 
-export default function Hero({lang} : {lang: string}) {
+export default function Hero({ lang }: { lang: string }) {
   // const [isExpanded, setIsExpanded] = useState(false);
   const dispatch: AppDispatch = useDispatch()
 
@@ -26,7 +26,7 @@ export default function Hero({lang} : {lang: string}) {
       id="home"
       className="relative overflow-hidden min-h-screen flex items-center 10"
     >
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center max-w-7xl mx-auto px-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center max-w-7xl mx-auto px-6 relative z-10">
         {/* Left Content */}
         <div className="space-y-8">
           <motion.div

@@ -64,7 +64,7 @@ export default function Features() {
               Powerful Features
             </span>
           </div>
-          
+
           <h2 className="text-4xl md:text-6xl font-extrabold mb-6">
             <span className="bg-gradient-to-r from-white to-[#00b4d8] bg-clip-text text-transparent">
               Everything You Need
@@ -74,9 +74,9 @@ export default function Features() {
               For Smart Water Management
             </span>
           </h2>
-          
+
           <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-            Our AI-powered platform provides comprehensive tools for rooftop rainwater harvesting assessment, 
+            Our AI-powered platform provides comprehensive tools for rooftop rainwater harvesting assessment,
             from initial measurement to expert consultation.
           </p>
         </motion.div>
@@ -95,7 +95,7 @@ export default function Features() {
               <div className="relative p-8 rounded-3xl glass shadow-glow hover:shadow-2xl transition-all duration-500 hover:scale-105 border border-gray-700/50">
                 {/* Background Gradient */}
                 <div className={`absolute inset-0 rounded-3xl bg-gradient-to-br ${feature.color} opacity-5 group-hover:opacity-10 transition-opacity duration-500`}></div>
-                
+
                 {/* Content */}
                 <div className="relative z-10">
                   {/* Icon */}

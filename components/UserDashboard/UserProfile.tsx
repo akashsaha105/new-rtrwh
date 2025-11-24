@@ -6,6 +6,7 @@ import { MapPinIcon } from "@heroicons/react/16/solid";
 import { onAuthStateChanged, updateProfile, User } from "firebase/auth";
 import { auth, firestore } from "@/firebase";
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import DetectArea from "./DetectArea";
 
 function toTitleCase(str: string) {
   return str
@@ -45,7 +46,7 @@ const FloatingNavbar = ({
   activeTab: string;
   setActiveTab: (tab: string) => void;
 }) => (
-  <div className="absolute z-50 top-5 left-80 transform -translate-x-1/2 bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg rounded-3xl w-11/12 max-w-md flex justify-between py-3 px-4">
+  <div className="absolute z-50 top-5 left-80 transform -translate-x-1/2 bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg rounded-3xl w-12/12 max-w-md flex justify-between py-3 px-4">
     <button
       onClick={() => setActiveTab("profile")}
       className={`flex-1 text-center py-2 mx-1 rounded-2xl font-medium transition-all ${
@@ -66,10 +67,22 @@ const FloatingNavbar = ({
     >
       Harvest
     </button>
+    <button
+      onClick={() => setActiveTab("detectRoofArea")}
+      className={`flex-1 text-center py-2 mx-1 px-3 rounded-2xl font-medium transition-all ${
+        activeTab === "detectRoofArea"
+          ? "bg-gradient-to-r from-indigo-500 to-pink-500 text-white shadow-md"
+          : "text-white/70 hover:bg-white/10"
+      }`}
+    >
+      Detect Roof Area
+    </button>
   </div>
 );
 
 const UserProfile = () => {
+  const [isDetectModalOpen, setIsDetectModalOpen] = useState(false); // <-- modal state
+
   const [activeTab, setActiveTab] = useState("profile");
 
   const [userProfile, setUserProfile] = useState<FormData>({
@@ -742,7 +755,40 @@ const UserProfile = () => {
             </form>
           </div>
         )}
+
+        {activeTab === "detectRoofArea" && (
+          <div className="relative bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-6 shadow-lg flex flex-col items-center justify-center">
+            <p className="text-white mb-4 text-center">
+              Click the button below to open the roof detection tool.
+            </p>
+            <button
+              type="button"
+              onClick={() => setIsDetectModalOpen(true)}
+              className="bg-gradient-to-r from-indigo-500 to-pink-500 text-white font-semibold py-3 px-6 rounded-xl shadow-md hover:opacity-90 transition cursor-pointer"
+            >
+              Detect Roof Area
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Centered modal for DetectArea (not full screen) */}
+      {isDetectModalOpen && (
+        <div className="fixed inset-0 z-[2000] bg-black/60 flex items-center justify-center">
+          <div className="relative w-[95vw] md:w-[80vw] lg:w-[70vw] h-[75vh] bg-black rounded-2xl overflow-hidden shadow-2xl">
+            <button
+              type="button"
+              onClick={() => setIsDetectModalOpen(false)}
+              className="absolute top-3 right-3 z-[2100] bg-white/90 text-black px-3 py-1 rounded-full shadow hover:bg-white"
+            >
+              Close
+            </button>
+            <div className="w-full h-full">
+              <DetectArea />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

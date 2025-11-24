@@ -40,7 +40,7 @@ export async function POST(req: Request) {
       {"predictedStorage":260,"extraStorageNeeded":100,"paybackYears":16.65,"demandCoverage":0.7222, "overflowRisk": "High" | "Moderate" | "Low"}
     `;
 
-    const genAI = new GoogleGenerativeAI("AIzaSyDuX1kImJocVGuKDwXH-XVJKVGNQUJutMg");
+    const genAI = new GoogleGenerativeAI("AIzaSyB7Fm_YjQ-SJZIuPH10NigNZngkzzejLi");
     const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 
     const response = await model.generateContent(prompt);

@@ -42,7 +42,7 @@ Rules:
     `;
 
     const genAI = new GoogleGenerativeAI(
-      "AIzaSyDObVhafnFaIusA46GFu0CjaQGDOLQ4J_I"
+      "AIzaSyB7Fm_YjQ-SJZIuPH10NigNZngkzzejLik"
     );
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 

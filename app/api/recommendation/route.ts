@@ -50,7 +50,7 @@ IMPORTANT:
     `;
 
     const genAI = new GoogleGenerativeAI(
-      "AIzaSyDuX1kImJocVGuKDwXH-XVJKVGNQUJutMg"
+      "AIzaSyB7Fm_YjQ-SJZIuPH10NigNZngkzzejLi"
     );
     const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 

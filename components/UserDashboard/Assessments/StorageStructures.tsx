@@ -7,6 +7,41 @@ import React, { useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 
+interface Props {
+  details: string;
+  dimensions: string;
+  match: number;
+}
+
+function parseDimensions(input: string) {
+  if (!input) return { length: 0, width: 0, height: 0 };
+
+  // Normalize the format:
+  // - Lowercase
+  // - Remove spaces
+  // - Replace special × with x
+  // - Remove all units like "m"
+  const clean = input
+    .toLowerCase()
+    .replace(/×/g, "x")
+    .replace(/\s+/g, "")
+    .replace(/m/g, ""); // remove meters
+
+  // Now split by x
+  const parts = clean.split("x");
+
+  if (parts.length !== 3) return { length: 0, width: 0, height: 0 };
+
+  // Convert to numbers (support decimals)
+  const [l, w, h] = parts.map((value) => parseFloat(value));
+
+  return {
+    length: isNaN(l) ? 0 : l,
+    width: isNaN(w) ? 0 : w,
+    height: isNaN(h) ? 0 : h,
+  };
+}
+
 function TankModel() {
   return (
     <mesh>
@@ -16,9 +51,14 @@ function TankModel() {
   );
 }
 
-export default function RecommendedStorageTank() {
+export default function RecommendedStorageTank({
+  props,
+}: {
+  props: Props | null;
+}) {
   const [open, setOpen] = useState(false);
 
+  const dims = parseDimensions(props?.dimensions ? props.dimensions : "");
   return (
     <div className="w-full mb-10">
       {/* Header */}
@@ -42,7 +82,7 @@ export default function RecommendedStorageTank() {
                 </div>
                 <div>
                   <h4 className="text-xl text-indigo-300 font-bold">
-                    Underground Tank
+                    Overhead Tank
                   </h4>
                   <p className="text-sm text-slate-400">
                     Ideal for household rainwater storage
@@ -51,7 +91,7 @@ export default function RecommendedStorageTank() {
               </div>
 
               <span className="px-3 py-1 rounded-lg text-sm font-medium bg-indigo-700/40 text-indigo-200 border border-indigo-500/40 shadow-inner">
-                82% Match
+                {props?.match}% Match
               </span>
             </div>
 
@@ -62,25 +102,13 @@ export default function RecommendedStorageTank() {
 
             {/* Description */}
             <p className="text-slate-300/90 leading-relaxed text-sm mb-6">
-              Designed to safely store harvested rainwater while preventing
-              contamination and heat exposure.
+              {/* Designed to safely store harvested rainwater while preventing
+              contamination and heat exposure. */}
+              {props?.details}
             </p>
 
             {/* Info Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-              {/* Volume */}
-              <div className="rounded-xl border border-slate-700/70 bg-slate-900/60 p-4 shadow-md">
-                <div className="flex items-center gap-3 mb-2">
-                  <Gauge size={20} className="text-teal-300" />
-                  <span className="text-teal-200 font-semibold text-sm">
-                    Volume
-                  </span>
-                </div>
-                <p className="text-slate-300 text-sm">
-                  <strong>5,000 Liters</strong>
-                </p>
-              </div>
-
               {/* Dimensions */}
               <div className="rounded-xl border border-slate-700/70 bg-slate-900/60 p-4 shadow-md">
                 <div className="flex items-center gap-3 mb-2">
@@ -90,7 +118,24 @@ export default function RecommendedStorageTank() {
                   </span>
                 </div>
                 <p className="text-slate-300 text-sm">
-                  2.5m × 2.5m × 1.5m (L × W × H)
+                  {/* 2.5m × 2.5m × 1.5m (L × W × H) */}
+                  {props?.dimensions} (L × W × H)
+                </p>
+              </div>
+
+              {/* Volume */}
+              <div className="rounded-xl border border-slate-700/70 bg-slate-900/60 p-4 shadow-md">
+                <div className="flex items-center gap-3 mb-2">
+                  <Gauge size={20} className="text-teal-300" />
+                  <span className="text-teal-200 font-semibold text-sm">
+                    Volume
+                  </span>
+                </div>
+                <p className="text-slate-300 text-sm">
+                  {/* <strong>5,000 Liters</strong> */}
+                  <strong>
+                    {Math.round(dims.length * dims.width * dims.height * 1000)} Liters
+                  </strong>
                 </p>
               </div>
             </div>
@@ -106,7 +151,7 @@ export default function RecommendedStorageTank() {
 
             <p className="mt-5 text-sm text-slate-400/80 mb-1">
               The system is optimized for durability and groundwater-independent
-              water use. dsadasd
+              water use based on roof geometry, space and availability.
             </p>
           </div>
         </div>

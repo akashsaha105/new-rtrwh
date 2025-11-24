@@ -98,7 +98,9 @@ const SignupModal = () => {
           city: "",
           address: "",
         },
+        mode: "free",
         status: "inactive",
+        reward: 0,
         createdAt: new Date(),
         uid: customUID,
       });
@@ -163,7 +165,7 @@ const SignupModal = () => {
         {
           username: generatedName,
           email: user.email || "",
-          fullName: user.displayName || "",
+          fullName: "",
           phoneNumber: user.phoneNumber || "",
           photoURL: user.photoURL || "",
           location: {
@@ -173,6 +175,7 @@ const SignupModal = () => {
           },
           mode: "free",
           status: "inactive",
+          reward: 0,
           createdAt: new Date(),
           uid: customUID,
         },

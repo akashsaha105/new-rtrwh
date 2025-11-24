@@ -5,6 +5,7 @@ import StoreProvider from "@/redux/StoreProvider";
 import { NextIntlClientProvider } from "next-intl";
 import Navbar from "@/components/Navbar";
 import ConditionalNavbar from "@/components/ConditionalNavbar";
+import "leaflet/dist/leaflet.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

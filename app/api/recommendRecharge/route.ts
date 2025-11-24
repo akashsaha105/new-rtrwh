@@ -48,9 +48,9 @@ Rules:
     `;
 
     const genAI = new GoogleGenerativeAI(
-      "AIzaSyDuX1kImJocVGuKDwXH-XVJKVGNQUJutMg"
+      "AIzaSyDObVhafnFaIusA46GFu0CjaQGDOLQ4J_I"
     );
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     const response = await model.generateContent(prompt);
     let raw = response.response.text() || "";

@@ -2,12 +2,16 @@
 
 import React from "react";
 import { DiamondIcon, DollarSign } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 
 export default function RewardBadge() {
     const count = 0;
-    const reduction = "-10% for 4 people"
+    // const reduction = "Rewards"
+    const router = useRouter();
+    const pathname = usePathname();
+    const lang = pathname.split("/")[1] || "en";
   return (
-    <div className="relative group cursor-pointer select-none">
+    <div className="relative group cursor-pointer select-none" onClick={() => router.push(`/${lang}/dashboard/reward`)}>
 
       {/* FULL BADGE */}
       <div
@@ -48,7 +52,8 @@ export default function RewardBadge() {
           px-3 py-1 rounded-md whitespace-nowrap shadow-lg z-20
         "
       >
-        Maintenance: {reduction}
+        {/* Maintenance: {reduction} */}
+        Reward Points
       </div>
     </div>
   );

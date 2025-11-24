@@ -26,6 +26,10 @@ import ROI from "./ROI";
 import Benefits from "./Benefits";
 import Efficiency from "./Efficiency";
 import StorageStructures from "./StorageStructures";
+import AquiferMap from "./AquiferMap";
+import MajorAquifersMap from "./AquiferMap";
+import LoadingPage from "@/components/Loading";
+import GISMap from "./GISMap";
 
 export function mmToM(mm: number): number {
   return mm / 1000;
@@ -36,17 +40,23 @@ export function sqftToM2(sqft: number): number {
   return sqft * 0.092903;
 }
 
-interface RechargeRequireProps {
-  rainfall: number;
-  rooftopArea: number;
-  rooftopType: string;
-  openSpace: number;
-  numberOfDwellers: number;
-  harvested: number;
-}
+// interface RechargeRequireProps {
+//   rainfall: number;
+//   rooftopArea: number;
+//   rooftopType: string;
+//   openSpace: number;
+//   numberOfDwellers: number;
+//   harvested: number;
+// }
 
 interface RechargeRecommendProps {
   structure: string;
+  details: string;
+  dimensions: string;
+  match: number;
+}
+
+interface StorageRecommendProps {
   details: string;
   dimensions: string;
   match: number;
@@ -479,7 +489,7 @@ const Assessment = ({ rainfall }: { rainfall: number }) => {
   }, [checkOrCreateAssessment]);
 
   const getRecommendations = async () => {
-    setMode("ai")
+    setMode("ai");
 
     if (!data) {
       setAILoading(true);
@@ -492,23 +502,31 @@ const Assessment = ({ rainfall }: { rainfall: number }) => {
           numberOfDwellers: dwellers,
           harvested: harvestPotential,
         };
-  
+
         const res1 = await fetch("/api/recommendRecharge", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
-  
+
+        const res2 = await fetch("/api/recommendStorage", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
         const json = await res1.json();
-  
+        const json2 = await res2.json();
+
         setData(json);
+        setData2(json2);
       } catch (err) {
         console.error("Prediction fetch error:", err);
       } finally {
         setAILoading(false);
       }
     }
-  }
+  };
   // Calculate derived values from report or fallback
   const harvestPotential =
     sqftToM2(Number(area)) * Number(runOffCoefficient) * mmToM(rainfall) * 1000;
@@ -558,6 +576,7 @@ const Assessment = ({ rainfall }: { rainfall: number }) => {
   // }
 
   const [data, setData] = useState<RechargeRecommendProps | null>(null);
+  const [data2, setData2] = useState<StorageRecommendProps | null>(null);
   const [aiLoading, setAILoading] = useState(true);
 
   // const [Structure, setStructure] = useState("");
@@ -596,151 +615,176 @@ const Assessment = ({ rainfall }: { rainfall: number }) => {
   //   loadPrediction();
   // }, []);
 
+  const [harvestMode, setHarvestMode] = useState("harvest");
+  const [modeLoading, setModeLoading] = useState(false);
+
+  function switchMode(mode: "harvest" | "aquifer") {
+    setModeLoading(true);
+    setHarvestMode(mode);
+
+    // force 5-second load
+    setTimeout(() => {
+      setModeLoading(false);
+    }, 1000);
+  }
+
   return (
     <div className="p-8 relative min-h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800">
-      {/* Dashboard Overview */}
-      <Overview area={area} type={type} space={space} dwellers={dwellers} />
-
-      {/* Water Storage Analysis */}
-      <WaterStorageAnalysis
-        roofRainCaptured={roofRainCaptured}
-        harvestPotential={harvestPotential}
-        percentage={
-          roofRainCaptured > 0
-            ? Math.round((harvestPotential / roofRainCaptured) * 100)
-            : 0
-        }
-      />
-
-      {/* Feasibility Check Section  */}
-      <Feasibility
-        assessmentStatus={assessmentStatus}
-        feasibility={feasibility}
-        errorMessage={errorMessage}
-        report={report?.report}
-      />
-
-      <div className="w-full pt-10">
-        {/* Buttons */}
+      {/* Buttons */}
+      <div className="flex flex-col justify-center items-center">
         <div className="flex gap-3 mb-4 justify-evenly">
           <button
-            onClick={() => setMode("jal")}
-            className={`px-4 py-2 rounded-xl transition cursor-pointer text-xl ${
-              mode === "jal" ? "text-teal-300" : "text-gray-400"
+            onClick={() => {
+              switchMode("harvest");
+            }}
+            className={`px-4 py-2 rounded-xl transition cursor-pointer text-md ${
+              harvestMode === "harvest"
+                ? "text-teal-300"
+                : "text-gray-400 hover:text-teal-500"
             }`}
           >
-            JalYantra Mode
+            ANALYSIS ASSESSMENT
           </button>
 
           <button
-            onClick={() => getRecommendations()}
-            className={`px-4 py-2 rounded-xl transition cursor-pointer text-xl ${
-              mode === "ai" ? "text-teal-300" : "text-gray-400"
+            onClick={() => switchMode("aquifer")}
+            className={`px-4 py-2 rounded-xl transition cursor-pointer text-md outline-0 ${
+              harvestMode === "aquifer"
+                ? "text-teal-300"
+                : "text-gray-400 hover:text-teal-500"
             }`}
           >
-            AI Suggest Mode
+            GIS BASED MAP
           </button>
         </div>
-
         {/* Divider Line */}
-        <div className="w-full h-px bg-white/10 mb-6" />
+        <div className="w-75 h-px bg-white/10 mb-6" />
+      </div>
 
-        {/* Sections */}
-        {mode === "jal" && (
-          <>
-            <GroundRechargeStruct />
-            <RecommendedStorageTank />
-          </>
-        )}
-
-        {mode === "ai" && (
-          <>
-            {aiLoading ? (
-              <p className="text-white/60 text-sm animate-pulse">
-                Generating AI predictions…
+      {modeLoading ? (
+        <div className="relative bottom-[170]">
+          <div className="p-8 relative min-h-screen bg-none flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-400 mx-auto mb-4"></div>
+              <p className="text-slate-300">Loading...</p>
+              <p className="text-slate-400 text-sm mt-2">
+                This may take 10-30 seconds
               </p>
-            ) : !data ? (
-              <p className="text-red-400 text-sm">
-                Failed to load predictions.
-              </p>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-7 items-stretch">
-                <div className="flex">
-                  {/* <GroundRechargeStruct /> */}
-                  <RechargeStructure props={data} />
-                </div>
+            </div>
+          </div>{" "}
+        </div>
+      ) : harvestMode === "harvest" ? (
+        <>
+          {/* Dashboard Overview */}
+          <Overview area={area} type={type} space={space} dwellers={dwellers} />
 
-                <div className="flex">
-                  <StorageStructures />
-                  {/* <RecommendedStorageTank /> */}
-                </div>
+          {/* Water Storage Analysis */}
+          <WaterStorageAnalysis
+            roofRainCaptured={roofRainCaptured}
+            harvestPotential={harvestPotential}
+            percentage={
+              roofRainCaptured > 0
+                ? Math.round((harvestPotential / roofRainCaptured) * 100)
+                : 0
+            }
+          />
+
+          {/* Feasibility Check Section  */}
+          <Feasibility
+            assessmentStatus={assessmentStatus}
+            feasibility={feasibility}
+            errorMessage={errorMessage}
+            report={report?.report}
+          />
+
+          <div className="w-full pt-10">
+            {/* Buttons */}
+            <div className="flex flex-col justify-center items-center">
+              <div className="flex gap-3 mb-4 justify-evenly">
+                <button
+                  onClick={() => setMode("jal")}
+                  className={`px-4 py-2 rounded-xl transition cursor-pointer text-md ${
+                    mode === "jal"
+                      ? "text-teal-300"
+                      : "text-gray-400 hover:text-teal-500"
+                  }`}
+                >
+                  JalYantra Mode
+                </button>
+
+                <button
+                  onClick={() => getRecommendations()}
+                  className={`px-4 py-2 rounded-xl transition cursor-pointer text-md ${
+                    mode === "ai"
+                      ? "text-teal-300"
+                      : "text-gray-400 hover:text-teal-500"
+                  }`}
+                >
+                  AI Suggest Mode
+                </button>
               </div>
+              {/* Divider Line */}
+              <div className="w-75 h-px bg-white/10 mb-6" />
+            </div>
+
+            {/* Sections */}
+            {mode === "jal" && (
+              <>
+                <GroundRechargeStruct />
+                <RecommendedStorageTank />
+              </>
             )}
-          </>
-        )}
-      </div>
 
-      {/* AI Suggested Recharge Structure Section */}
-      {/* <RechargeStructure
-        recommendedStructures={report?.recommendedStructures}
-        recommendedDimensions={report?.recommendedDimensions}
-        suggestedStructure={suggestedStructure}
-      /> */}
+            {mode === "ai" && (
+              <>
+                {aiLoading ? (
+                  <p className="text-white/60 text-sm animate-pulse">
+                    Generating AI predictions…
+                  </p>
+                ) : !data ? (
+                  <p className="text-red-400 text-sm">
+                    Failed to load predictions.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-7 items-stretch">
+                    <div className="flex">
+                      {/* <GroundRechargeStruct /> */}
+                      <RechargeStructure props={data} />
+                    </div>
 
-      {/* Recommendation for Groundwater Recharge Structures */}
-      {/* <GroundRechargeStruct /> */}
+                    <div className="flex">
+                      <StorageStructures props={data2} />
+                      {/* <RecommendedStorageTank /> */}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
 
-      {/* Recommendation for Storage Tank */}
-      {/* <RecommendedStorageTank /> */}
+          {/* Usage Breakdown Pie Chart */}
+          <Usage environmentalImpact={report?.environmentalImpact} />
 
-      {/* Usage Breakdown Pie Chart */}
-      <Usage environmentalImpact={report?.environmentalImpact} />
+          {/* Cost Estimation & Cost-Benefit Analysis */}
+          <Cost
+            costBenefit={report?.costBenefit}
+            costEstimate={report?.costEstimate}
+          />
 
-      {/* Cost Estimation & Cost-Benefit Analysis */}
-      <Cost
-        costBenefit={report?.costBenefit}
-        costEstimate={report?.costEstimate}
-      />
+          {/* ROI */}
+          <ROI />
 
-      {/* ROI */}
-      <ROI />
+          {/* Interactive Rooftop Efficiency Calculator */}
+          <Efficiency />
 
-      {/* Interactive Rooftop Efficiency Calculator */}
-      <Efficiency />
-
-      {/* Benefits */}
-      <Benefits />
-
-      {/* What-If Analysis */}
-      {/* <div className="mt-10">
-    <h3
-      className="text-lg font-semibold mb-4 text-indigo-300"
-      id="what-if"
-      data-tab="assessment"
-    >
-      {t("whatIfAnalysis")}
-    </h3>
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <div className="p-6 rounded-2xl bg-gradient-to-br from-indigo-900/60 to-slate-900/80 border border-indigo-700 shadow-md">
-        <h3 className="text-lg font-semibold text-indigo-300">{t("doubleRooftopArea")}</h3>
-        <p className="text-xl font-bold text-indigo-400 mt-2">
-          30,000 Liters / Year
-        </p>
-      </div>
-      <div className="p-6 rounded-2xl bg-gradient-to-br from-pink-900/60 to-slate-900/80 border border-pink-700 shadow-md">
-        <h3 className="text-lg font-semibold text-pink-300">{t("reduceDwellers")}</h3>
-        <p className="text-xl font-bold text-pink-400 mt-2">
-          4,000 Liters / Person
-        </p>
-      </div>
-      <div className="p-6 rounded-2xl bg-gradient-to-br from-amber-900/60 to-slate-900/80 border border-amber-700 shadow-md">
-        <h3 className="text-lg font-semibold text-amber-400">{t("addStorageTank")}</h3>
-        <p className="text-xl font-bold text-amber-400 mt-2">
-          5,000 Liters Extra Capacity
-        </p>
-      </div> */}
-      {/* </div> */}
-      {/* </div> */}
+          {/* Benefits */}
+          <Benefits />
+        </>
+      ) : (
+        <>
+          <GISMap />
+        </>
+      )}
     </div>
   );
 };

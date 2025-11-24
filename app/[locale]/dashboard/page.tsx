@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth, firestore } from "@/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
+
 import LoadingPage from "@/components/Loading";
 import SideBar from "@/components/UserDashboard/Sidebar";
 import Navbar from "@/components/UserDashboard/Navbar";
@@ -18,7 +19,6 @@ import InstallPage from "@/components/UserDashboard/Install";
 import ProDashboard from "@/components/UserDashboard/ProUser";
 import ChatWidget from "@/components/ChatWidget";
 import { getPreviousMonthRange } from "@/utils/date";
-import { useGeolocation } from "@/utils/geoLocation";
 import RainfallStrip from "@/components/RainfallStrip";
 
 export function mmToM(mm: number): number {
@@ -26,172 +26,146 @@ export function mmToM(mm: number): number {
 }
 
 export function sqftToM2(sqft: number): number {
-  if (!sqft || sqft < 0) return 0;
-  return sqft * 0.092903;
+  return !sqft || sqft < 0 ? 0 : sqft * 0.092903;
+}
+
+interface RoofTopData {
+  rooftop: {
+    area: string;
+    type: string;
+    dwellers: string;
+    space: string;
+    runOffCoefficient: number;
+  };
 }
 
 const Page = () => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [hasRooftop, setHasRooftop] = useState<boolean | null>(null);
-  const [status, setStatus] = useState<string>("inactive");
-
   const router = useRouter();
 
-  // Sidebar states
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const [hasRooftop, setHasRooftop] = useState<boolean | null>(null);
+  const [status, setStatus] = useState<string>("inactive");
   const [activeItem, setActiveItem] = useState("assessment");
 
-  // Rooftop Data
-  interface RoofTopData {
-    rooftop: {
-      area: string;
-      type: string;
-      dwellers: string;
-      space: string;
-      runOffCoefficient: number;
-    };
-  }
-
   const [rooftopData, setRooftopData] = useState<RoofTopData>();
+  const [rainfall, setRainfall] = useState<number>(0);
 
-  // Auth check + Firestore rooftop check
+  const { startDate, endDate } = getPreviousMonthRange();
+
+  // TEMP: Static location (Mumbai)
+  const lat = 19.076;
+  const lon = 72.8777;
+
+  // -----------------------------
+  // AUTH + USER FIRESTORE FETCH
+  // -----------------------------
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (
-        (!currentUser || currentUser.email == "admin123@admin.com") &&
+        (!currentUser || currentUser.email === "admin123@admin.com") &&
         !currentUser?.emailVerified
       ) {
         router.push("/");
-        console.log("User is not authenticated");
         return;
       }
+
       setUser(currentUser);
 
-      try {
-        const userDocRef = doc(firestore, "users", currentUser.uid);
-        const unsubscribeSnapshot = onSnapshot(userDocRef, (snapshot) => {
-          if (snapshot.exists()) {
-            try {
-              const SnapShotStatus = snapshot.data().status;
-              setStatus(SnapShotStatus);
+      // Firestore listener
+      const userDocRef = doc(firestore, "users", currentUser.uid);
 
-              const roofTopData = snapshot.data() as RoofTopData;
-              if (
-                roofTopData.rooftop.area !== "" &&
-                roofTopData.rooftop.dwellers !== "" &&
-                roofTopData.rooftop.space !== "" &&
-                roofTopData.rooftop.type !== ""
-              ) {
-                setHasRooftop(true);
-                setRooftopData(roofTopData);
-              } else {
-                setHasRooftop(false);
-              }
-            } catch (e) {
-              console.log(e);
-              setHasRooftop(false);
-            }
+      const unsubSnapshot = onSnapshot(userDocRef, (snapshot) => {
+        if (!snapshot.exists()) {
+          setHasRooftop(false);
+          setLoading(false);
+          return;
+        }
+
+        try {
+          const data = snapshot.data();
+          setStatus(data.status);
+
+          const rt = data as RoofTopData;
+
+          const valid =
+            rt.rooftop.area &&
+            rt.rooftop.type &&
+            rt.rooftop.space &&
+            rt.rooftop.dwellers;
+
+          if (valid) {
+            setHasRooftop(true);
+            setRooftopData(rt);
+          } else {
+            setHasRooftop(false);
           }
-          return () => unsubscribeSnapshot();
-        });
-      } catch (error) {
-        console.error("Error fetching rooftop data:", error);
-        setHasRooftop(false);
-      }
+        } catch (err) {
+          setHasRooftop(false);
+        }
 
-      setLoading(false);
+        setLoading(false); // Only after Firestore responds
+      });
+
+      return () => unsubSnapshot();
     });
 
     return () => unsubscribe();
   }, [router]);
 
-  const [rainfall, setRainfall] = useState<number>(0);
-
-  const { startDate, endDate } = getPreviousMonthRange();
-
-  // move hook call to the component top-level
-  // const { lat, lon, error } = useGeolocation();
-
-  // ================= For Testing - Mumbai =================
-  const lat = 19.076;
-  const lon = 72.8777;
-
+  // -----------------------------
+  // RAINFALL FETCH (Only once)
+  // -----------------------------
   useEffect(() => {
+    if (!lat || !lon) return;
+
     const fetchRainfall = async () => {
-      // if (error) {
-      //   console.error("Geolocation error:", error);
-      //   return;
-      // }
-      if (lat == null || lon == null) {
-        // wait until geolocation is available
-        return;
-      }
-
       try {
-        // const lat = 55.0833;
-        // const lon = 88.408064;
-
         const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=rain&start_date=${startDate}&end_date=${endDate}`;
 
         const res = await fetch(url);
-        if (!res.ok) throw new Error("Failed to fetch rainfall data");
+        if (!res.ok) throw new Error("Failed to fetch rainfall");
 
         const data = await res.json();
-
         const rainfallArray = data?.hourly?.rain || [];
 
-        const totalRainfall = rainfallArray.reduce(
-          (sum: number, v: number) => sum + (v || 0),
-          0
-        );
-
-        setRainfall(totalRainfall);
+        const total = rainfallArray.reduce((sum: number, v: number) => sum + (v || 0), 0);
+        setRainfall(total);
       } catch (err) {
-        console.error("Error fetching rainfall:", err);
+        console.error("Rainfall error:", err);
       }
     };
 
     fetchRainfall();
-  });
+  }, [lat, lon, startDate, endDate]);
 
-  // Get last month name
-  const date = new Date();
-  const lastMonthIndex = (date.getMonth() - 1 + 12) % 12;
-  const lastMonthName = new Date(
-    date.getFullYear(),
-    lastMonthIndex
-  ).toLocaleString("en-IN", {
-    month: "long",
-  });
-  // console.log("Rainfall: ", rainfall);
-  // console.log(startDate, endDate);
+  // -----------------------------
+  // MONTH NAME
+  // -----------------------------
+  const lastMonthName = new Date(new Date().getFullYear(), new Date().getMonth() - 1)
+    .toLocaleString("en-IN", { month: "long" });
 
+  // -----------------------------
+  // RAIN CAPTURE CALC
+  // -----------------------------
   const roofRainCaptured =
     sqftToM2(Number(rooftopData?.rooftop.area)) *
     Number(rooftopData?.rooftop.runOffCoefficient) *
     mmToM(rainfall) *
     1000;
 
-  // if (loading) return <LoadingPage />;
-  if (loading)
-    return (
-      <>
-        <div className="p-8 relative min-h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-400 mx-auto mb-4"></div>
-            <p className="text-slate-300">
-              Generating feasibility assessment...
-            </p>
-            <p className="text-slate-400 text-sm mt-2">
-              This may take 10-30 seconds
-            </p>
-          </div>
-        </div>
-      </>
-    );
+  // -----------------------------
+  // GLOBAL LOADING FIRST
+  // -----------------------------
+  if (loading) return <LoadingPage />;
+
+  // -----------------------------
+  // MAIN UI
+  // -----------------------------
   return (
     <div className="flex h-full bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800 text-white">
-      {/* Sidebar */}
+
       <SideBar
         username={user?.displayName}
         email={user?.email}
@@ -199,133 +173,84 @@ const Page = () => {
         setActiveItem={setActiveItem}
       />
 
-      {/* Main Section */}
       <div className="relative z-10 flex-1 flex flex-col">
-        {/* Navbar */}
-        <Navbar
-          status={status}
-          activeItem={activeItem}
-          setActiveItem={setActiveItem}
-        />
+        <Navbar status={status} activeItem={activeItem} setActiveItem={setActiveItem} />
 
-        {/* Content */}
-        {/* <main className="relative z-[-1] flex-1 overflow-y-auto"> */}
         <main className="relative z-[-1] flex-1 overflow-y-auto h-screen">
-          {/* {!hasRooftop ? (
-            <></>
-          ) : (
-            <>
-            </>
-          )} */}
-
           {/* Assessment */}
-          <div className={activeItem === "assessment" ? "block" : "hidden"}>
-            {!hasRooftop ? (
+          {activeItem === "assessment" && (
+            hasRooftop ? (
               <>
-                <div className="flex justify-center items-center h-full">
-                  <NoRoofTop setActiveItem={setActiveItem} />
-                </div>
-              </>
-            ) : (
-              <>
-                <RainfallStrip
-                  month={lastMonthName}
-                  rainfall={rainfall}
-                  rainCaptured={roofRainCaptured}
-                />
+                <RainfallStrip month={lastMonthName} rainfall={rainfall} rainCaptured={roofRainCaptured} />
                 <Assessment rainfall={rainfall} />
               </>
-            )}
-          </div>
+            ) : (
+              <NoRoofTop setActiveItem={setActiveItem} />
+            )
+          )}
 
           {/* Insights */}
-          <div className={activeItem === "insights" ? "block" : "hidden"}>
-            {!hasRooftop ? (
-              <NoRoofTop setActiveItem={setActiveItem} />
-            ) : (
+          {activeItem === "insights" && (
+            hasRooftop ? (
               <>
-                <RainfallStrip
-                  month={lastMonthName}
-                  rainfall={rainfall}
-                  rainCaptured={roofRainCaptured}
-                />
-
+                <RainfallStrip month={lastMonthName} rainfall={rainfall} rainCaptured={roofRainCaptured} />
                 <Insights lastMonthRainfall={rainfall} />
               </>
-            )}
-          </div>
-
-          {/* Installation */}
-          <div className={activeItem === "install" ? "block" : "hidden"}>
-            {!hasRooftop ? (
-              <NoRoofTop setActiveItem={setActiveItem} />
             ) : (
-              <>
-                <RainfallStrip
-                  month={lastMonthName}
-                  rainfall={rainfall}
-                  rainCaptured={roofRainCaptured}
-                />
+              <NoRoofTop setActiveItem={setActiveItem} />
+            )
+          )}
 
+          {/* Install */}
+          {activeItem === "install" && (
+            hasRooftop ? (
+              <>
+                <RainfallStrip month={lastMonthName} rainfall={rainfall} rainCaptured={roofRainCaptured} />
                 <InstallPage />
               </>
-            )}
-          </div>
+            ) : (
+              <NoRoofTop setActiveItem={setActiveItem} />
+            )
+          )}
 
           {/* Community */}
-          <div className={activeItem === "community" ? "block" : "hidden"}>
-            {!hasRooftop ? (
-              <NoRoofTop setActiveItem={setActiveItem} />
-            ) : (
+          {activeItem === "community" && (
+            hasRooftop ? (
               <>
-                <RainfallStrip
-                  month={lastMonthName}
-                  rainfall={rainfall}
-                  rainCaptured={roofRainCaptured}
-                />
-
+                <RainfallStrip month={lastMonthName} rainfall={rainfall} rainCaptured={roofRainCaptured} />
                 <Community />
               </>
-            )}
-          </div>
-
-          {/* Pro Users */}
-          <div className={activeItem === "pro" ? "block" : "hidden"}>
-            {!hasRooftop ? (
-              <NoRoofTop setActiveItem={setActiveItem} />
             ) : (
-              <>
-                <RainfallStrip
-                  month={lastMonthName}
-                  rainfall={rainfall}
-                  rainCaptured={roofRainCaptured}
-                />
+              <NoRoofTop setActiveItem={setActiveItem} />
+            )
+          )}
 
+          {/* Pro */}
+          {activeItem === "pro" && (
+            hasRooftop ? (
+              <>
+                <RainfallStrip month={lastMonthName} rainfall={rainfall} rainCaptured={roofRainCaptured} />
                 <ProDashboard />
               </>
-            )}
-          </div>
-
-          {/* Pdf Report */}
-          <div className={activeItem === "pdf" ? "block" : "hidden"}>
-            {!hasRooftop ? (
-              <NoRoofTop setActiveItem={setActiveItem} />
             ) : (
+              <NoRoofTop setActiveItem={setActiveItem} />
+            )
+          )}
+
+          {/* PDF */}
+          {activeItem === "pdf" && (
+            hasRooftop ? (
               <>
-                <RainfallStrip
-                  month={lastMonthName}
-                  rainfall={rainfall}
-                  rainCaptured={roofRainCaptured}
-                />
+                <RainfallStrip month={lastMonthName} rainfall={rainfall} rainCaptured={roofRainCaptured} />
                 <PDFReport />
               </>
-            )}
-          </div>
+            ) : (
+              <NoRoofTop setActiveItem={setActiveItem} />
+            )
+          )}
 
           {/* Profile */}
-          <div className={activeItem === "profile" ? "block" : "hidden"}>
-            <UserProfile />
-          </div>
+          {activeItem === "profile" && <UserProfile />}
         </main>
       </div>
 

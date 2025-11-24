@@ -92,28 +92,34 @@ const LoginModal = () => {
         const customUID = await generateCustomUID();
 
         if (!userDoc.exists()) {
-          await setDoc(userRef, {
-            fullName: "",
-            phoneNumber: "",
-            geopoint: [],
-            email: user.email,
-            username: user.displayName,
-            uid: customUID,
-            photoURL: user.photoURL || "",
-            createdAt: new Date(),
-            location: {
-              state: "",
-              city: "",
-              address: "",
+          await setDoc(
+            userRef,
+            {
+              fullName: "",
+              phoneNumber: "",
+              geopoint: [],
+              email: user.email,
+              username: user.displayName,
+              uid: customUID,
+              photoURL: user.photoURL || "",
+              createdAt: new Date(),
+              location: {
+                state: "",
+                city: "",
+                address: "",
+              },
+              rooftop: {
+                area: "",
+                type: "",
+                dwellers: "",
+                space: "",
+              },
+              mode: "free",
+              status: "inactive",
+              reward: 0,
             },
-            rooftop: {
-              area: "",
-              type: "",
-              dwellers: "",
-              space: "",
-            },
-            status: "inactive",
-          }, {merge: true});
+            { merge: true }
+          );
         }
 
         dispatch(closeLoginModal());
@@ -166,7 +172,7 @@ const LoginModal = () => {
         const customUID = await generateCustomUID();
 
         await setDoc(userRef, {
-          fullName: user.displayName,
+          fullName: "",
           phoneNumber: user.phoneNumber,
           geopoint: [],
           email: user.email,
@@ -185,7 +191,9 @@ const LoginModal = () => {
             dwellers: "",
             space: "",
           },
-          status: "Inactive",
+          mode: "free",
+          status: "inactive",
+          reward: 0,
         });
       } else {
         // user doc exists → update photoURL if missing
@@ -204,10 +212,10 @@ const LoginModal = () => {
           await setDoc(
             userRef,
             {
-              fullName: user.displayName
+              fullName: user.displayName,
             },
-            {merge: true}
-          )
+            { merge: true }
+          );
         }
         if (!data.phoneNumber && user.phoneNumber) {
           await setDoc(

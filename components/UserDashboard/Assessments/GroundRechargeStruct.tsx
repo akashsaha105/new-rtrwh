@@ -66,7 +66,7 @@ export default function GroundRechargeStruct() {
   }>(null);
 
   return (
-    <div className="mt-8 mb-12">
+    <div className="mt-3 mb-12">
       <h4 className="text-2xl font-semibold text-teal-400 mb-6 flex items-center gap-2">
         💧{t("rechargeStructureRecommendations")}
       </h4>

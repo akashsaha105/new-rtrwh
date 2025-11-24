@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/firebase";
 import { LayoutDashboard } from "lucide-react";
+import LoadingPage from "./Loading";
 
 const DashboardButton = () => {
   const [userEmail, setUserEmail] = useState<string>("");
@@ -26,6 +27,7 @@ const DashboardButton = () => {
           ? "/en/adminDashboard"
           : "/en/dashboard"
       }
+      onClick={() => <LoadingPage />}
       className="relative group flex items-center gap-2 px-5 py-2
                  rounded-xl font-semibold text-white 
                  bg-gradient-to-r from-[#0077b6] to-[#00b4d8] 

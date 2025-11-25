@@ -52,6 +52,9 @@ const DetectArea: React.FC = () => {
   const [roofs, setRoofs] = useState<RoofData[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [latInput, setLatInput] = useState("");
+  const [lngInput, setLngInput] = useState("");
+  const [targetLocation, setTargetLocation] = useState<Coord | null>(null);
 
   // Refs for drawing layer
   const drawingLayerRef = useRef<L.LayerGroup | null>(null);
@@ -92,7 +95,16 @@ const DetectArea: React.FC = () => {
         navigator.geolocation.getCurrentPosition(
           (pos) => {
             const { latitude, longitude } = pos.coords;
-            setCurrentLocation({ lat: latitude, lng: longitude });
+            const coord = { lat: latitude, lng: longitude };
+
+            // store as "current" and as "target" (for pointer)
+            setCurrentLocation(coord);
+            setTargetLocation(coord);
+
+            // also prefill inputs with detected coordinate
+            setLatInput(latitude.toFixed(6));
+            setLngInput(longitude.toFixed(6));
+
             map.flyTo([latitude, longitude], 19);
           },
           (err) => console.warn("Geolocation denied or failed", err)
@@ -162,14 +174,25 @@ const DetectArea: React.FC = () => {
 
       // Add Tooltip with Area
       const center = polygon.getBounds().getCenter();
+      const areaSqFt = roof.areaSqM * 10.7639;
       const areaLabel = L.divIcon({
         className: 'bg-white/90 px-2 py-1 rounded shadow text-xs font-bold whitespace-nowrap',
-        html: `<div>${Math.round(roof.areaSqM)} m²</div><div class="text-[10px] text-gray-500">${Math.round(roof.areaSqM * 10.764)} sqft</div>`
+        html: `<div>${Math.round(areaSqFt)} sqft</div><div class="text-[10px] text-gray-500">${Math.round(roof.areaSqM)} m²</div>`
       });
       L.marker(center, { icon: areaLabel }).addTo(layerGroup);
     });
 
-  }, [mapInstance, roofs, manualPoints, drawMode]);
+    // Render target location marker if present
+    if (targetLocation) {
+      L.marker([targetLocation.lat, targetLocation.lng], {
+        icon: L.divIcon({
+          className: "custom-target-marker",
+          html: `<div style="width:14px;height:14px;border-radius:999px;border:2px solid #2563eb;background:#eff6ff;box-shadow:0 0 0 4px rgba(37,99,235,0.25);"></div>`
+        })
+      }).addTo(layerGroup);
+    }
+
+  }, [mapInstance, roofs, manualPoints, drawMode, targetLocation]);
 
   // -- Logic --
 
@@ -340,6 +363,19 @@ const DetectArea: React.FC = () => {
     }
   };
 
+  const goToCoordinate = () => {
+    if (!mapInstance) return;
+    const lat = parseFloat(latInput);
+    const lng = parseFloat(lngInput);
+    if (isNaN(lat) || isNaN(lng)) {
+      setError("Invalid latitude or longitude.");
+      return;
+    }
+    const coord = { lat, lng };
+    setTargetLocation(coord);
+    mapInstance.flyTo([lat, lng], 19);
+  };
+
   // -- Render --
 
   return (
@@ -379,6 +415,32 @@ const DetectArea: React.FC = () => {
           />
           <button onClick={performSearch} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
             <Search size={18} className="text-slate-600" />
+          </button>
+        </div>
+
+        {/* Coordinate input */}
+        <div className="bg-white/90 backdrop-blur-md p-2 rounded-xl shadow-lg flex flex-col gap-2 text-xs">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              placeholder="Lat"
+              className="bg-transparent outline-none px-2 py-1 border border-slate-200 rounded flex-1"
+              value={latInput}
+              onChange={(e) => setLatInput(e.target.value)}
+            />
+            <input
+              type="text"
+              placeholder="Lng"
+              className="bg-transparent outline-none px-2 py-1 border border-slate-200 rounded flex-1"
+              value={lngInput}
+              onChange={(e) => setLngInput(e.target.value)}
+            />
+          </div>
+          <button
+            onClick={goToCoordinate}
+            className="mt-1 flex items-center justify-center gap-1 p-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 text-xs font-medium"
+          >
+            <MapPin size={14} /> Go to Coordinate
           </button>
         </div>
 
@@ -446,20 +508,25 @@ const DetectArea: React.FC = () => {
               </button>
             </div>
             <div className="space-y-2 max-h-40 overflow-y-auto">
-              {roofs.map((roof, i) => (
-                <div key={roof.id} className="flex justify-between items-center text-sm border-b border-slate-100 pb-1 last:border-0">
-                  <span className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${roof.type === 'auto' ? 'bg-red-500' : 'bg-emerald-500'}`} />
-                    Roof {i + 1}
-                  </span>
-                  <span className="font-mono font-medium">
-                    {Math.round(roof.areaSqM)} m²
-                  </span>
-                </div>
-              ))}
+              {roofs.map((roof, i) => {
+                const areaSqFt = roof.areaSqM * 10.7639;
+                return (
+                  <div key={roof.id} className="flex justify-between items-center text-sm border-b border-slate-100 pb-1 last:border-0">
+                    <span className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${roof.type === 'auto' ? 'bg-red-500' : 'bg-emerald-500'}`} />
+                      Roof {i + 1}
+                    </span>
+                    <span className="font-mono font-medium">
+                      {Math.round(areaSqFt)} sqft
+                    </span>
+                  </div>
+                );
+              })}
               <div className="pt-2 mt-2 border-t border-slate-200 flex justify-between font-bold text-indigo-900">
                 <span>Total</span>
-                <span>{Math.round(roofs.reduce((acc, r) => acc + r.areaSqM, 0))} m²</span>
+                <span>
+                  {Math.round(roofs.reduce((acc, r) => acc + r.areaSqM * 10.7639, 0))} sqft
+                </span>
               </div>
             </div>
           </div>

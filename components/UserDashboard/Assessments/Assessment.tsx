@@ -71,35 +71,44 @@ interface RoofTopData {
 }
 
 interface ReportData {
+  // from computeFeasibility.ReportOutput, plus legacy fields
   assessmentId: string;
   name?: string;
   avgRainfall_mm: number;
   litres_per_year: number;
-  runoffCoefficient: number;
-  report: {
-    feasibilityScore: number;
-    category: "High" | "Moderate" | "Low";
-    breakdown: {
-      roofScore: number;
-      openSpaceScore: number;
-      rainfallScore: number;
-      gwScore: number;
-      soilScore: number;
-    };
+  runoffCoefficient?: number;
+  feasibilityScore: number;
+  category: "High" | "Moderate" | "Low";
+  breakdown: {
+    roofScore: number;
+    openSpaceScore: number;
+    rainfallScore: number;
+    gwScore: number;
+    soilScore: number;
   };
-  explanation: string;
+  explanation?: string;
   recommendedStructures: {
     type: string;
     reason?: string;
     confidence?: number;
   }[];
   recommendedDimensions: {
-    trench?: { length: number; width: number; depth: number; unit: string };
-    pits?: { count: number; diameter: number; depth: number; unit: string };
-    shaft?: { diameter: number; depth: number; unit: string };
-    pit?: { count: number; diameter: number; depth: number; unit: string };
+    trench?: { length?: number; width?: number; depth?: number; unit?: string };
+    pits?: { count?: number; diameter?: number; depth?: number; unit?: string };
+    shaft?: { diameter?: number; depth?: number; unit?: string };
+    pit?: {
+      // legacy fields kept optional for backward compatibility
+      count?: number;
+      diameter?: number;
+      depth?: number;
+      unit?: string;
+      // new from computeFeasibility
+      diameter_m?: number;
+      depth_m?: number;
+      volume_m3?: number;
+    };
   };
-  costEstimate: {
+  costEstimate?: {
     CAPEX: number;
     materialCost: number;
     labourCost: number;
@@ -107,10 +116,9 @@ interface ReportData {
     paybackPeriod: number;
     waterTariff: number;
   };
-  generatedAt: { seconds: number; nanoseconds: number } | null;
+  generatedAt?: { seconds: number; nanoseconds: number } | string | null;
   pdfUrl?: string | null;
 
-  // NEW: align with computeFeasibility.ts
   costBenefit?: {
     installationCost_INR: number;
     annualMaintenance_INR: number;
@@ -124,16 +132,20 @@ interface ReportData {
     roi10yr_multiple: number | null;
   };
 
-  environmentalImpact: {
+  environmentalImpact?: {
     co2Saved_kg_per_year: number;
     groundwaterRecharge_litres_per_year: number;
     tankerTripsAvoided_per_year: number;
-    sustainabilityRating: number;
+    sustainabilityRating:
+      | "Excellent"
+      | "Good"
+      | "Fair"
+      | "Needs Improvement";
     groundwaterDependencyReduction_pct: number;
-    perCapitaWaterSaved_litres_per_year: number;
+    perCapitaWaterSaved_litres_per_year: number | null;
     householdsEquivalentWaterServed: number;
     energySaved_kWh_per_year: number;
-    descriptionBullets: number;
+    descriptionBullets: string[];
   };
 }
 
@@ -361,35 +373,6 @@ const Assessment = ({ rainfall }: { rainfall: number }) => {
                 String(getRoofTopData.rooftop.runOffCoefficient)
               );
 
-              // async function loadPrediction() {
-              //   try {
-              //     const payload = {
-              //       rainfall: rainfall,
-              //       rooftopArea: getRoofTopData.rooftop.area,
-              //       rooftopType: getRoofTopData.rooftop.type,
-              //       openSpace: getRoofTopData.rooftop.space,
-              //       numberOfDwellers: getRoofTopData.rooftop.dwellers,
-              //       harvested: harvestPotential,
-              //     };
-
-              //     const res1 = await fetch("/api/recommendRecharge", {
-              //       method: "POST",
-              //       headers: { "Content-Type": "application/json" },
-              //       body: JSON.stringify(payload),
-              //     });
-
-              //     const json = await res1.json();
-
-              //     setData(json);
-              //   } catch (err) {
-              //     console.error("Prediction fetch error:", err);
-              //   } finally {
-              //     setAILoading(false);
-              //   }
-              // }
-
-              // loadPrediction();
-
               const getCity = data as City;
 
               // Get location coordinates
@@ -479,7 +462,7 @@ const Assessment = ({ rainfall }: { rainfall: number }) => {
   }, [checkOrCreateAssessment]);
 
   const getRecommendations = async () => {
-    setMode("ai")
+    setMode("ai");
 
     if (!data) {
       setAILoading(true);
@@ -492,15 +475,15 @@ const Assessment = ({ rainfall }: { rainfall: number }) => {
           numberOfDwellers: dwellers,
           harvested: harvestPotential,
         };
-  
+
         const res1 = await fetch("/api/recommendRecharge", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
-  
+
         const json = await res1.json();
-  
+
         setData(json);
       } catch (err) {
         console.error("Prediction fetch error:", err);
@@ -508,15 +491,17 @@ const Assessment = ({ rainfall }: { rainfall: number }) => {
         setAILoading(false);
       }
     }
-  }
+  };
   // Calculate derived values from report or fallback
   const harvestPotential =
     sqftToM2(Number(area)) * Number(runOffCoefficient) * mmToM(rainfall) * 1000;
   const roofRainCaptured = sqftToM2(Number(area)) * mmToM(rainfall) * 1000;
   const feasibility = report
     ? {
-        feasible: report.report?.category !== "Low",
-        reason: report.explanation || "Feasibility assessment in progress.",
+        feasible: report.category !== "Low",
+        reason:
+          report.explanation ||
+          "Feasibility assessment in progress.",
       }
     : assessmentStatus === "processing"
     ? {
@@ -543,58 +528,9 @@ const Assessment = ({ rainfall }: { rainfall: number }) => {
         reason:
           "Assessment data not available. Please ensure your profile information is complete.",
       };
-  // if (loading && assessmentStatus === "processing") {
-  //   return (
-  //     <div className="p-8 relative min-h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800 flex items-center justify-center">
-  //       <div className="text-center">
-  //         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-400 mx-auto mb-4"></div>
-  //         <p className="text-slate-300">Generating feasibility assessment...</p>
-  //         <p className="text-slate-400 text-sm mt-2">
-  //           This may take 10-30 seconds
-  //         </p>
-  //       </div>
-  //     </div>
-  //   );
-  // }
 
   const [data, setData] = useState<RechargeRecommendProps | null>(null);
   const [aiLoading, setAILoading] = useState(true);
-
-  // const [Structure, setStructure] = useState("");
-  // const [details, setDetails] = useState("");
-  // const [dimensions, setDimensions] = useState("");
-  // const [match, setMatch] = useState("");
-
-  // useEffect(() => {
-  //   async function loadPrediction() {
-  //     try {
-  //       const payload = {
-  //         rainfall: rainfall,
-  //         rooftopArea: area,
-  //         rooftopType: type,
-  //         openSpace: space,
-  //         numberOfDwellers: dwellers,
-  //         harvested: harvestPotential,
-  //       };
-
-  //       const res1 = await fetch("/api/recommendRecharge", {
-  //         method: "POST",
-  //         headers: { "Content-Type": "application/json" },
-  //         body: JSON.stringify(payload),
-  //       });
-
-  //       const json = await res1.json();
-
-  //       setData(json);
-  //     } catch (err) {
-  //       console.error("Prediction fetch error:", err);
-  //     } finally {
-  //       setAILoading(false);
-  //     }
-  //   }
-
-  //   loadPrediction();
-  // }, []);
 
   return (
     <div className="p-8 relative min-h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800">
@@ -617,7 +553,19 @@ const Assessment = ({ rainfall }: { rainfall: number }) => {
         assessmentStatus={assessmentStatus}
         feasibility={feasibility}
         errorMessage={errorMessage}
-        report={report?.report}
+        report={
+          report
+            ? {
+                assessmentId: report.assessmentId,
+                avgRainfall_mm: report.avgRainfall_mm,
+                litres_per_year: report.litres_per_year,
+                feasibilityScore: report.feasibilityScore,
+                category: report.category,
+                breakdown: report.breakdown,
+                explanation: report.explanation,
+              }
+            : undefined
+        }
       />
 
       <div className="w-full pt-10">
@@ -649,7 +597,16 @@ const Assessment = ({ rainfall }: { rainfall: number }) => {
         {mode === "jal" && (
           <>
             <GroundRechargeStruct />
-            <RecommendedStorageTank />
+            <RecommendedStorageTank
+              feasibility={
+                report
+                  ? {
+                      category: report.category,
+                      score: report.feasibilityScore,
+                    }
+                  : undefined
+              }
+            />
           </>
         )}
 
@@ -666,32 +623,17 @@ const Assessment = ({ rainfall }: { rainfall: number }) => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-7 items-stretch">
                 <div className="flex">
-                  {/* <GroundRechargeStruct /> */}
                   <RechargeStructure props={data} />
                 </div>
 
                 <div className="flex">
                   <StorageStructures />
-                  {/* <RecommendedStorageTank /> */}
                 </div>
               </div>
             )}
           </>
         )}
       </div>
-
-      {/* AI Suggested Recharge Structure Section */}
-      {/* <RechargeStructure
-        recommendedStructures={report?.recommendedStructures}
-        recommendedDimensions={report?.recommendedDimensions}
-        suggestedStructure={suggestedStructure}
-      /> */}
-
-      {/* Recommendation for Groundwater Recharge Structures */}
-      {/* <GroundRechargeStruct /> */}
-
-      {/* Recommendation for Storage Tank */}
-      {/* <RecommendedStorageTank /> */}
 
       {/* Usage Breakdown Pie Chart */}
       <Usage environmentalImpact={report?.environmentalImpact} />
@@ -703,44 +645,16 @@ const Assessment = ({ rainfall }: { rainfall: number }) => {
       />
 
       {/* ROI */}
-      <ROI />
+      <ROI
+        costBenefit={report?.costBenefit}
+        costEstimate={report?.costEstimate}
+      />
 
       {/* Interactive Rooftop Efficiency Calculator */}
       <Efficiency />
 
       {/* Benefits */}
       <Benefits />
-
-      {/* What-If Analysis */}
-      {/* <div className="mt-10">
-    <h3
-      className="text-lg font-semibold mb-4 text-indigo-300"
-      id="what-if"
-      data-tab="assessment"
-    >
-      {t("whatIfAnalysis")}
-    </h3>
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <div className="p-6 rounded-2xl bg-gradient-to-br from-indigo-900/60 to-slate-900/80 border border-indigo-700 shadow-md">
-        <h3 className="text-lg font-semibold text-indigo-300">{t("doubleRooftopArea")}</h3>
-        <p className="text-xl font-bold text-indigo-400 mt-2">
-          30,000 Liters / Year
-        </p>
-      </div>
-      <div className="p-6 rounded-2xl bg-gradient-to-br from-pink-900/60 to-slate-900/80 border border-pink-700 shadow-md">
-        <h3 className="text-lg font-semibold text-pink-300">{t("reduceDwellers")}</h3>
-        <p className="text-xl font-bold text-pink-400 mt-2">
-          4,000 Liters / Person
-        </p>
-      </div>
-      <div className="p-6 rounded-2xl bg-gradient-to-br from-amber-900/60 to-slate-900/80 border border-amber-700 shadow-md">
-        <h3 className="text-lg font-semibold text-amber-400">{t("addStorageTank")}</h3>
-        <p className="text-xl font-bold text-amber-400 mt-2">
-          5,000 Liters Extra Capacity
-        </p>
-      </div> */}
-      {/* </div> */}
-      {/* </div> */}
     </div>
   );
 };
@@ -767,11 +681,11 @@ export function FeasibilityCardSimple({
         <div>
           <div className="text-sm text-gray-300">Feasibility</div>
           <div className="text-2xl font-bold">
-            {report.report.feasibilityScore} / 100
+            {report.feasibilityScore} / 100
           </div>
         </div>
         <div className="px-3 py-1 rounded bg-blue-600">
-          {report.report.category}
+          {report.category}
         </div>
       </div>
       <div className="mt-3 text-sm text-gray-300">
@@ -786,7 +700,7 @@ export function FeasibilityCardSimple({
         )}
       </div>
 
-      {pit && (
+      {pit && pit.diameter != null && pit.depth != null && pit.unit && (
         <div className="mt-3 text-sm">
           <div>
             Recommended pit: {pit.diameter} {pit.unit} diameter × {pit.depth}{" "}

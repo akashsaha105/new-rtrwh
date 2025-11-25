@@ -27,6 +27,12 @@ interface Props {
 
 export default function ROI(props: Props) {
   const t = useTranslations("assessment");
+
+  const payback =
+    props?.costBenefit?.paybackPeriod_years ??
+    props?.costEstimate?.paybackPeriod ??
+    2;
+
   return (
     <div className="bg-gradient-to-r from-teal-900/60 to-indigo-900/60 p-6 rounded-2xl border border-teal-700 shadow-xl hover:scale-[1.01] transition">
       <h4 className="text-xl font-semibold text-teal-300">
@@ -35,10 +41,8 @@ export default function ROI(props: Props) {
       <p className="text-lg mt-2 text-slate-200">
         Your system will pay for itself in around{" "}
         <span className="text-teal-400 font-bold">
-          {props?.costBenefit?.paybackPeriod_years
-            ? `${props.costBenefit.paybackPeriod_years} years`
-            : props?.costEstimate?.paybackPeriod
-            ? `${props.costEstimate.paybackPeriod} years`
+          {typeof payback === "number"
+            ? `${payback} years`
             : "2 years"}
         </span>
         .

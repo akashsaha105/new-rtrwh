@@ -27,6 +27,8 @@ export type ReportOutput = {
     gwScore: number;
     soilScore: number;
   };
+  // high-level explanation for UI
+  explanation?: string;
   recommendedStructures: { type: string; confidence: number; reason: string }[];
   recommendedDimensions: {
     // primary recommendation (pit), add trench fields as fallback
@@ -116,16 +118,56 @@ function computePitDimensions(
   };
 }
 
-export function computeFeasibility(assess: AssessmentInput): ReportOutput {
+import { getAverageRainfall, getCoordinates, getSoilProperties, getGroundwaterDepth } from "./weather";
+
+export async function computeFeasibility(assess: AssessmentInput): Promise<ReportOutput> {
   // safe pulls + defaults
   const roofArea = Number(assess.roofArea_m2 ?? 0);
   const openSpace = Number(assess.openSpace_m2 ?? 0);
-  const avgRain = Number(assess.avgRainfall_mm ?? DEFAULT_RAIN_MM);
-  const gwDepth = Number(assess.gwDepth_m ?? DEFAULT_GW_DEPTH_M);
-  const soilPerm = Number(assess.soilPerm ?? DEFAULT_SOIL_PERM);
+  let avgRain = Number(assess.avgRainfall_mm ?? 0);
+  let gwDepth = Number(assess.gwDepth_m ?? 0);
+  let soilPerm = Number(assess.soilPerm ?? 0);
   const dwellers = Number.isFinite(assess.dwellers ?? NaN)
     ? Number(assess.dwellers)
     : null;
+
+  // Resolve Location first (needed for all APIs)
+  let lat = assess.location?.lat;
+  let lng = assess.location?.lng;
+
+  if ((!lat || !lng) && assess.location?.address) {
+    const coords = await getCoordinates(assess.location.address);
+    if (coords) {
+      lat = coords.lat;
+      lng = coords.lng;
+    }
+  }
+
+  // If we have valid coords, fetch missing data
+  if (lat && lng) {
+    // 1. Rainfall
+    if (!avgRain) {
+      const fetchedRain = await getAverageRainfall(lat, lng);
+      if (fetchedRain) avgRain = fetchedRain;
+    }
+
+    // 2. Soil Permeability
+    if (!soilPerm) {
+      const fetchedSoil = await getSoilProperties(lat, lng);
+      if (fetchedSoil !== null) soilPerm = fetchedSoil;
+    }
+
+    // 3. Groundwater Depth
+    if (!gwDepth) {
+      const fetchedGw = getGroundwaterDepth(lat, lng);
+      gwDepth = fetchedGw;
+    }
+  }
+
+  // Apply defaults for anything still missing
+  if (!avgRain) avgRain = DEFAULT_RAIN_MM;
+  if (!gwDepth) gwDepth = DEFAULT_GW_DEPTH_M;
+  if (!soilPerm) soilPerm = DEFAULT_SOIL_PERM;
 
   // runoff
   const litres_per_year = calcRunoffLitresPerYear(roofArea, avgRain);
@@ -140,18 +182,39 @@ export function computeFeasibility(assess: AssessmentInput): ReportOutput {
   // weighted feasibility score
   const feasibilityScore = Math.round(
     0.3 * roofScore +
-      0.2 * openSpaceScore +
-      0.2 * rainfallScore +
-      0.15 * gwScore +
-      0.15 * soilScore
+    0.2 * openSpaceScore +
+    0.2 * rainfallScore +
+    0.15 * gwScore +
+    0.15 * soilScore
   );
 
   const category =
     feasibilityScore >= 80
       ? "High"
       : feasibilityScore >= 50
-      ? "Moderate"
-      : "Low";
+        ? "Moderate"
+        : "Low";
+
+  // simple explanation text
+  const explanationParts: string[] = [];
+  if (roofScore >= 70) explanationParts.push("large or efficient rooftop area boosted the score");
+  else if (roofScore < 30) explanationParts.push("limited rooftop area reduced feasibility");
+
+  if (openSpaceScore >= 70) explanationParts.push("good open space availability supported trench/pit options");
+  else if (openSpaceScore < 30) explanationParts.push("limited open space restricted on‑ground structures");
+
+  if (rainfallScore >= 70) explanationParts.push("high annual rainfall increased potential capture");
+  else if (rainfallScore < 30) explanationParts.push("low rainfall reduced total harvest potential");
+
+  if (soilScore >= 70) explanationParts.push("good soil permeability improved recharge potential");
+  else if (soilScore < 30) explanationParts.push("poor soil permeability constrained recharge performance");
+
+  const explanation =
+    explanationParts.length > 0
+      ? `Overall feasibility is ${category.toLowerCase()} (${feasibilityScore}/100) because ${explanationParts.join(
+        "; "
+      )}.`
+      : `Overall feasibility is ${category.toLowerCase()} (${feasibilityScore}/100).`;
 
   // recommendation rules (deterministic)
   const recommendedStructures: ReportOutput["recommendedStructures"] = [];
@@ -318,6 +381,7 @@ export function computeFeasibility(assess: AssessmentInput): ReportOutput {
     feasibilityScore,
     category,
     breakdown: { roofScore, openSpaceScore, rainfallScore, gwScore, soilScore },
+    explanation,
     recommendedStructures,
     recommendedDimensions: {
       pit: dims.pit,

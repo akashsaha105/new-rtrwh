@@ -141,7 +141,7 @@ export default function Cost(props: Props) {
             <li className="flex justify-between">
               <span>Return on Investment (10 Yrs):</span>
               <span className="font-semibold text-slate-100">
-                {props?.costBenefit?.roi10yr_multiple
+                {props?.costBenefit?.roi10yr_multiple != null
                   ? `${props.costBenefit.roi10yr_multiple.toFixed(1)}x`
                   : props?.costEstimate?.paybackPeriod &&
                     props.costEstimate.paybackPeriod > 0

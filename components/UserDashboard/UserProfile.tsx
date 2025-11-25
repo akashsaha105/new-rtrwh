@@ -123,6 +123,7 @@ const UserProfile = () => {
     >
   ) => {
     const { name, value } = e.target;
+
     if (name === "state" || name === "city" || name === "address") {
       setFormData((prev) => ({
         ...prev,
@@ -133,6 +134,12 @@ const UserProfile = () => {
       }));
       return;
     }
+
+    // update all other top-level fields (fullName, username, phoneNumber, etc.)
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   const handleRooftopChange = (

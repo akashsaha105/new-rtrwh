@@ -32,27 +32,25 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 // }
 
 interface Props {
-  environmentalImpact: {
-    co2Saved_kg_per_year: number;
-    groundwaterRecharge_litres_per_year: number;
-    tankerTripsAvoided_per_year: number;
-    sustainabilityRating: number;
-    groundwaterDependencyReduction_pct: number;
-    perCapitaWaterSaved_litres_per_year: number;
-    householdsEquivalentWaterServed: number;
-    energySaved_kWh_per_year: number;
-    // descriptionBullets: [
-    //   {
-    //     length: number;
-    //   }
-    // ];
-    descriptionBullets: number | [
-      {
-        length: number;
+  environmentalImpact:
+    | {
+        co2Saved_kg_per_year: number;
+        groundwaterRecharge_litres_per_year: number;
+        tankerTripsAvoided_per_year: number;
+        sustainabilityRating:
+          | "Excellent"
+          | "Good"
+          | "Fair"
+          | "Needs Improvement";
+        groundwaterDependencyReduction_pct: number;
+        perCapitaWaterSaved_litres_per_year: number | null;
+        householdsEquivalentWaterServed: number;
+        energySaved_kWh_per_year: number;
+        descriptionBullets: string[];
       }
-    ];
-  } | undefined;
+    | undefined;
 }
+
 export default function Usage(props: Props) {
   const t = useTranslations("assessment");
 
@@ -69,11 +67,10 @@ export default function Usage(props: Props) {
           {t("environmentalImpact")}
         </h3>
 
-        <ResponsiveContainer width="100%" height={260} mt-20>
+        <ResponsiveContainer width="100%" height={260}>
           <PieChart>
             <Pie
               data={
-                // build a normalized array (always an array, never undefined)
                 props?.environmentalImpact
                   ? [
                       {
@@ -84,7 +81,6 @@ export default function Usage(props: Props) {
                       },
                       {
                         name: "GW recharge (kL/yr)",
-                        // convert litres -> kilo-litres safely
                         value:
                           safeNum(
                             props.environmentalImpact
@@ -113,9 +109,7 @@ export default function Usage(props: Props) {
                             .energySaved_kWh_per_year
                         ),
                       },
-                    ]
-                      // remove zero or negative entries so they don't break the pie
-                      .filter((d) => d.value > 0)
+                    ].filter((d) => d.value > 0)
                   : []
               }
               dataKey="value"
@@ -127,10 +121,14 @@ export default function Usage(props: Props) {
               paddingAngle={3}
               isAnimationActive
               labelLine={false}
-              label={(entry: { value?: number; payload?: { value?: number; name?: string }; name?: string }) => {
-                // entry may have payload or value — be defensive
+              label={(
+                entry: {
+                  value?: number;
+                  payload?: { value?: number; name?: string };
+                  name?: string;
+                },
+              ) => {
                 const val = safeNum(entry?.value ?? entry?.payload?.value);
-                // format numbers with thousands separators; show one decimal for kL values if < 1000
                 const formatted =
                   val >= 1000
                     ? Math.round(val).toLocaleString()
@@ -179,11 +177,11 @@ export default function Usage(props: Props) {
                   key={`cell-env-${index}`}
                   fill={
                     [
-                      "#38bdf8", // sky-400
-                      "#22c55e", // emerald-500
-                      "#f97316", // orange-500
-                      "#a855f7", // purple-500
-                      "#eab308", // yellow-500
+                      "#38bdf8",
+                      "#22c55e",
+                      "#f97316",
+                      "#a855f7",
+                      "#eab308",
                     ][index % 5]
                   }
                   stroke="#020617"
@@ -194,7 +192,6 @@ export default function Usage(props: Props) {
 
             <Tooltip
               formatter={(value: number, name: string) => {
-                // Show units clearly in tooltip
                 switch (name) {
                   case "CO₂ saved (kg/yr)":
                     return [`${value.toLocaleString()} kg`, name];
@@ -210,13 +207,12 @@ export default function Usage(props: Props) {
                     ];
                   case "Energy saved (kWh/yr)":
                     return [`${value.toLocaleString()} kWh`, name];
-                  case "Tanker trips avoided/yr":
                   default:
                     return [value.toLocaleString(), name];
                 }
               }}
               contentStyle={{
-                backgroundColor: "#8cd9a1", // slate-950
+                backgroundColor: "#0f172a",
                 border: "1px solid #1f2937",
                 borderRadius: "0.5rem",
                 color: "#e5e7eb",
@@ -229,7 +225,7 @@ export default function Usage(props: Props) {
         {!props?.environmentalImpact && (
           <p className="mt-3 text-xs text-slate-400">
             Environmental impact data will appear here once the assessment
-            props.report is generated from Firebase.
+            report is generated from Firebase.
           </p>
         )}
       </div>
@@ -327,14 +323,12 @@ export default function Usage(props: Props) {
           </p>
           <ul className="space-y-1.5 text-xs text-teal-100">
             {Array.isArray(props?.environmentalImpact?.descriptionBullets) &&
-            (props.environmentalImpact
-              .descriptionBullets as { length: number }[]).length > 0 ? (
-              (props.environmentalImpact
-                .descriptionBullets as { length: number }[]).map(
+            props.environmentalImpact.descriptionBullets.length > 0 ? (
+              props.environmentalImpact.descriptionBullets.map(
                 (line, idx) => (
                   <li key={idx} className="flex gap-2">
                     <span>•</span>
-                    <span>{line.length}</span>
+                    <span>{line}</span>
                   </li>
                 )
               )

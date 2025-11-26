@@ -77,7 +77,7 @@ const Navbar: React.FC<DashboardHeaderProps> = ({
         >
           <span
             className={`w-2.5 h-2.5 rounded-full animate-pulse ${
-              status.toLowerCase() === "basic"
+              status.toLowerCase() === "standard"
                 ? "bg-blue-400"
                 : status.toLowerCase() === "pro"
                 ? "bg-green-400"

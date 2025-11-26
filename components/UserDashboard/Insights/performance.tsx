@@ -3,7 +3,7 @@ import { Droplets, Database, TrendingDown, GlassWater } from "lucide-react";
 
 interface performanceProps {
     systemEfficiency?: number | string;
-    demandCoverage?: number | string;
+    overflowRisk?: number | string;
     overflowLoss?: number | string;
     waterQuality?: number | string;
 }
@@ -24,7 +24,7 @@ export default function Performance(performanceProps: performanceProps) {
           <Database className="h-6 w-6 text-yellow-400" />  
           <h3 className="text-lg font-semibold text-teal-300">Overflow Risk</h3>
         </div>
-        <p className="text-2xl font-bold mt-3">{performanceProps.demandCoverage ?? "67"}%</p>
+        <p className="text-2xl font-bold mt-3">{performanceProps.overflowRisk}%</p>
         <p className="text-sm text-white/60">
           Household demand met by rainwater
         </p>

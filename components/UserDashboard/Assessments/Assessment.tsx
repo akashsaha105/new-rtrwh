@@ -26,10 +26,8 @@ import ROI from "./ROI";
 import Benefits from "./Benefits";
 import Efficiency from "./Efficiency";
 import StorageStructures from "./StorageStructures";
-import AquiferMap from "./AquiferMap";
-import MajorAquifersMap from "./AquiferMap";
-import LoadingPage from "@/components/Loading";
 import GISMap from "./GISMap";
+// import LoadingPage from "@/components/Loading";
 
 export function mmToM(mm: number): number {
   return mm / 1000;
@@ -81,35 +79,44 @@ interface RoofTopData {
 }
 
 interface ReportData {
+  // from computeFeasibility.ReportOutput, plus legacy fields
   assessmentId: string;
   name?: string;
   avgRainfall_mm: number;
   litres_per_year: number;
-  runoffCoefficient: number;
-  report: {
-    feasibilityScore: number;
-    category: "High" | "Moderate" | "Low";
-    breakdown: {
-      roofScore: number;
-      openSpaceScore: number;
-      rainfallScore: number;
-      gwScore: number;
-      soilScore: number;
-    };
+  runoffCoefficient?: number;
+  feasibilityScore: number;
+  category: "High" | "Moderate" | "Low";
+  breakdown: {
+    roofScore: number;
+    openSpaceScore: number;
+    rainfallScore: number;
+    gwScore: number;
+    soilScore: number;
   };
-  explanation: string;
+  explanation?: string;
   recommendedStructures: {
     type: string;
     reason?: string;
     confidence?: number;
   }[];
   recommendedDimensions: {
-    trench?: { length: number; width: number; depth: number; unit: string };
-    pits?: { count: number; diameter: number; depth: number; unit: string };
-    shaft?: { diameter: number; depth: number; unit: string };
-    pit?: { count: number; diameter: number; depth: number; unit: string };
+    trench?: { length?: number; width?: number; depth?: number; unit?: string };
+    pits?: { count?: number; diameter?: number; depth?: number; unit?: string };
+    shaft?: { diameter?: number; depth?: number; unit?: string };
+    pit?: {
+      // legacy fields kept optional for backward compatibility
+      count?: number;
+      diameter?: number;
+      depth?: number;
+      unit?: string;
+      // new from computeFeasibility
+      diameter_m?: number;
+      depth_m?: number;
+      volume_m3?: number;
+    };
   };
-  costEstimate: {
+  costEstimate?: {
     CAPEX: number;
     materialCost: number;
     labourCost: number;
@@ -117,10 +124,9 @@ interface ReportData {
     paybackPeriod: number;
     waterTariff: number;
   };
-  generatedAt: { seconds: number; nanoseconds: number } | null;
+  generatedAt?: { seconds: number; nanoseconds: number } | string | null;
   pdfUrl?: string | null;
 
-  // NEW: align with computeFeasibility.ts
   costBenefit?: {
     installationCost_INR: number;
     annualMaintenance_INR: number;
@@ -134,16 +140,16 @@ interface ReportData {
     roi10yr_multiple: number | null;
   };
 
-  environmentalImpact: {
+  environmentalImpact?: {
     co2Saved_kg_per_year: number;
     groundwaterRecharge_litres_per_year: number;
     tankerTripsAvoided_per_year: number;
-    sustainabilityRating: number;
+    sustainabilityRating: "Excellent" | "Good" | "Fair" | "Needs Improvement";
     groundwaterDependencyReduction_pct: number;
-    perCapitaWaterSaved_litres_per_year: number;
+    perCapitaWaterSaved_litres_per_year: number | null;
     householdsEquivalentWaterServed: number;
     energySaved_kWh_per_year: number;
-    descriptionBullets: number;
+    descriptionBullets: string[];
   };
 }
 
@@ -533,7 +539,7 @@ const Assessment = ({ rainfall }: { rainfall: number }) => {
   const roofRainCaptured = sqftToM2(Number(area)) * mmToM(rainfall) * 1000;
   const feasibility = report
     ? {
-        feasible: report.report?.category !== "Low",
+        feasible: report.category !== "Low",
         reason: report.explanation || "Feasibility assessment in progress.",
       }
     : assessmentStatus === "processing"
@@ -694,7 +700,19 @@ const Assessment = ({ rainfall }: { rainfall: number }) => {
             assessmentStatus={assessmentStatus}
             feasibility={feasibility}
             errorMessage={errorMessage}
-            report={report?.report}
+            report={
+              report
+                ? {
+                    assessmentId: report.assessmentId,
+                    avgRainfall_mm: report.avgRainfall_mm,
+                    litres_per_year: report.litres_per_year,
+                    feasibilityScore: report.feasibilityScore,
+                    category: report.category,
+                    breakdown: report.breakdown,
+                    explanation: report.explanation,
+                  }
+                : undefined
+            }
           />
 
           <div className="w-full pt-10">
@@ -811,12 +829,10 @@ export function FeasibilityCardSimple({
         <div>
           <div className="text-sm text-gray-300">Feasibility</div>
           <div className="text-2xl font-bold">
-            {report.report.feasibilityScore} / 100
+            {report.feasibilityScore} / 100
           </div>
         </div>
-        <div className="px-3 py-1 rounded bg-blue-600">
-          {report.report.category}
-        </div>
+        <div className="px-3 py-1 rounded bg-blue-600">{report.category}</div>
       </div>
       <div className="mt-3 text-sm text-gray-300">
         <div>
@@ -830,7 +846,7 @@ export function FeasibilityCardSimple({
         )}
       </div>
 
-      {pit && (
+      {pit && pit.diameter != null && pit.depth != null && pit.unit && (
         <div className="mt-3 text-sm">
           <div>
             Recommended pit: {pit.diameter} {pit.unit} diameter × {pit.depth}{" "}

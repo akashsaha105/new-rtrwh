@@ -84,14 +84,14 @@ const WeatherForecast = ({ collapsed, city }: { collapsed: boolean; city?: strin
   }
 
   return (
-    <div className={`mt-2 p-2 rounded-full ${collapsed ? "" : "mt-2"} text-white/90`}>
+    <div className={`mt-2 pt-2 rounded-full ${collapsed ? "" : "mt-2"} text-white/90`}>
       {!collapsed && <h3 className="text-md font-semibold mb-3 text-center text-teal-200">{city} Weather</h3>}
 
       <div className={`flex ${collapsed ? "flex-col gap-4 ms-[-10]" : "flex-col space-y-2"}`}>
         {forecastCards.map((day) => (
           <div
             key={day.day}
-            className={`flex items-center justify-between border border-teal-500 p-2 rounded-2xl 
+            className={`flex items-center justify-between border border-teal-500 p-2 rounded-lg 
               ${collapsed ? "relative group cursor-pointer w-11" : "hover:bg-teal-500 transition"}`}
           >
             {/* Always show icon */}

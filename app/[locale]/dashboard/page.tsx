@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth, firestore } from "@/firebase";
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, onSnapshot, setDoc } from "firebase/firestore";
 
 import LoadingPage from "@/components/Loading";
 import SideBar from "@/components/UserDashboard/Sidebar";
@@ -130,7 +130,10 @@ const Page = () => {
         const data = await res.json();
         const rainfallArray = data?.hourly?.rain || [];
 
-        const total = rainfallArray.reduce((sum: number, v: number) => sum + (v || 0), 0);
+        const total = rainfallArray.reduce(
+          (sum: number, v: number) => sum + (v || 0),
+          0
+        );
         setRainfall(total);
       } catch (err) {
         console.error("Rainfall error:", err);
@@ -143,8 +146,10 @@ const Page = () => {
   // -----------------------------
   // MONTH NAME
   // -----------------------------
-  const lastMonthName = new Date(new Date().getFullYear(), new Date().getMonth() - 1)
-    .toLocaleString("en-IN", { month: "long" });
+  const lastMonthName = new Date(
+    new Date().getFullYear(),
+    new Date().getMonth() - 1
+  ).toLocaleString("en-IN", { month: "long" });
 
   // -----------------------------
   // RAIN CAPTURE CALC
@@ -156,6 +161,43 @@ const Page = () => {
     1000;
 
   // -----------------------------
+  // RAIN CAPTURE CALC
+  // -----------------------------
+  useEffect(() => {
+    if (!user) return;
+
+    const usersDoc = doc(firestore, "users", user.uid);
+
+    const unsubscribe = onSnapshot(usersDoc, async (snapshot) => {
+      if (!snapshot.exists()) return;
+
+      try {
+        const data = snapshot.data();
+
+        // Only act when status === inactive
+        if (data.status === "inactive") {
+          await setDoc(
+            usersDoc,
+            {
+              monthlyCollected: {
+                [lastMonthName]: {
+                  rainfall: Number(roofRainCaptured.toFixed(2)),
+                  harvested: 0,
+                },
+              },
+            },
+            { merge: true }
+          );
+        }
+      } catch (e) {
+        console.error("Update error:", e);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [user, lastMonthName, roofRainCaptured]);
+
+  // -----------------------------
   // GLOBAL LOADING FIRST
   // -----------------------------
   if (loading) return <LoadingPage />;
@@ -165,7 +207,6 @@ const Page = () => {
   // -----------------------------
   return (
     <div className="flex h-full bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800 text-white">
-
       <SideBar
         username={user?.displayName}
         email={user?.email}
@@ -174,80 +215,102 @@ const Page = () => {
       />
 
       <div className="relative z-10 flex-1 flex flex-col">
-        <Navbar status={status} activeItem={activeItem} setActiveItem={setActiveItem} />
+        <Navbar
+          status={status}
+          activeItem={activeItem}
+          setActiveItem={setActiveItem}
+        />
 
         <main className="relative z-[-1] flex-1 overflow-y-auto h-screen">
           {/* Assessment */}
-          {activeItem === "assessment" && (
-            hasRooftop ? (
+          {activeItem === "assessment" &&
+            (hasRooftop ? (
               <>
-                <RainfallStrip month={lastMonthName} rainfall={rainfall} rainCaptured={roofRainCaptured} />
+                <RainfallStrip
+                  month={lastMonthName}
+                  rainfall={rainfall}
+                  rainCaptured={roofRainCaptured}
+                />
                 <Assessment rainfall={rainfall} />
               </>
             ) : (
               <NoRoofTop setActiveItem={setActiveItem} />
-            )
-          )}
+            ))}
 
           {/* Insights */}
-          {activeItem === "insights" && (
-            hasRooftop ? (
+          {activeItem === "insights" &&
+            (hasRooftop ? (
               <>
-                <RainfallStrip month={lastMonthName} rainfall={rainfall} rainCaptured={roofRainCaptured} />
+                <RainfallStrip
+                  month={lastMonthName}
+                  rainfall={rainfall}
+                  rainCaptured={roofRainCaptured}
+                />
                 <Insights lastMonthRainfall={rainfall} />
               </>
             ) : (
               <NoRoofTop setActiveItem={setActiveItem} />
-            )
-          )}
+            ))}
 
           {/* Install */}
-          {activeItem === "install" && (
-            hasRooftop ? (
+          {activeItem === "install" &&
+            (hasRooftop ? (
               <>
-                <RainfallStrip month={lastMonthName} rainfall={rainfall} rainCaptured={roofRainCaptured} />
+                <RainfallStrip
+                  month={lastMonthName}
+                  rainfall={rainfall}
+                  rainCaptured={roofRainCaptured}
+                />
                 <InstallPage />
               </>
             ) : (
               <NoRoofTop setActiveItem={setActiveItem} />
-            )
-          )}
+            ))}
 
           {/* Community */}
-          {activeItem === "community" && (
-            hasRooftop ? (
+          {activeItem === "community" &&
+            (hasRooftop ? (
               <>
-                <RainfallStrip month={lastMonthName} rainfall={rainfall} rainCaptured={roofRainCaptured} />
+                <RainfallStrip
+                  month={lastMonthName}
+                  rainfall={rainfall}
+                  rainCaptured={roofRainCaptured}
+                />
                 <Community />
               </>
             ) : (
               <NoRoofTop setActiveItem={setActiveItem} />
-            )
-          )}
+            ))}
 
           {/* Pro */}
-          {activeItem === "pro" && (
-            hasRooftop ? (
+          {activeItem === "pro" &&
+            (hasRooftop ? (
               <>
-                <RainfallStrip month={lastMonthName} rainfall={rainfall} rainCaptured={roofRainCaptured} />
+                <RainfallStrip
+                  month={lastMonthName}
+                  rainfall={rainfall}
+                  rainCaptured={roofRainCaptured}
+                />
                 <ProDashboard />
               </>
             ) : (
               <NoRoofTop setActiveItem={setActiveItem} />
-            )
-          )}
+            ))}
 
           {/* PDF */}
-          {activeItem === "pdf" && (
-            hasRooftop ? (
+          {activeItem === "pdf" &&
+            (hasRooftop ? (
               <>
-                <RainfallStrip month={lastMonthName} rainfall={rainfall} rainCaptured={roofRainCaptured} />
+                <RainfallStrip
+                  month={lastMonthName}
+                  rainfall={rainfall}
+                  rainCaptured={roofRainCaptured}
+                />
                 <PDFReport />
               </>
             ) : (
               <NoRoofTop setActiveItem={setActiveItem} />
-            )
-          )}
+            ))}
 
           {/* Profile */}
           {activeItem === "profile" && <UserProfile />}

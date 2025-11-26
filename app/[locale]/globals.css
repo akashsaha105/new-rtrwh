@@ -6,8 +6,30 @@
   --primary-blue: #0077b6;
   --secondary-aqua: #00b4d8;
   --accent-green: #48bb78;
+  --primary: #0000;
+  --secondary: #07b8a6;
+  --tertiary: #009688;
 }
 
+/* Chrome, Edge, and Safari */
+*::-webkit-scrollbar {
+  width: 5px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--primary);
+  border-radius: 5px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--secondary);
+  border-radius: 14px;
+  border: 3px solid var(--primary);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--tertiary);
+}
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -22,7 +44,9 @@ body {
   overflow-x: hidden;
 }
 
-html, body, #__next {
+html,
+body,
+#__next {
   height: 100%;
 }
 
@@ -32,45 +56,120 @@ html, body, #__next {
 
 /* Enhanced Glowing Star Background */
 body::before {
-  content: '';
+  content: "";
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
   background: 
-    /* Small bright stars */
-    radial-gradient(1px 1px at 50px 50px, rgba(255,255,255,0.9), transparent),
+    /* Small bright stars */ radial-gradient(
+      1px 1px at 50px 50px,
+      rgba(255, 255, 255, 0.9),
+      transparent
+    ),
     radial-gradient(1px 1px at 150px 100px, rgba(0, 180, 216, 0.8), transparent),
     radial-gradient(1px 1px at 250px 25px, rgba(72, 187, 120, 0.7), transparent),
     radial-gradient(1px 1px at 350px 75px, rgba(0, 119, 182, 0.6), transparent),
-    radial-gradient(1px 1px at 450px 150px, rgba(255,255,255,0.8), transparent),
+    radial-gradient(
+      1px 1px at 450px 150px,
+      rgba(255, 255, 255, 0.8),
+      transparent
+    ),
     radial-gradient(1px 1px at 550px 50px, rgba(0, 180, 216, 0.7), transparent),
-    radial-gradient(1px 1px at 650px 125px, rgba(72, 187, 120, 0.6), transparent),
+    radial-gradient(
+      1px 1px at 650px 125px,
+      rgba(72, 187, 120, 0.6),
+      transparent
+    ),
     radial-gradient(1px 1px at 750px 30px, rgba(0, 119, 182, 0.7), transparent),
-    radial-gradient(1px 1px at 850px 80px, rgba(255,255,255,0.8), transparent),
+    radial-gradient(
+      1px 1px at 850px 80px,
+      rgba(255, 255, 255, 0.8),
+      transparent
+    ),
     radial-gradient(1px 1px at 950px 180px, rgba(0, 180, 216, 0.6), transparent),
-    radial-gradient(1px 1px at 1050px 120px, rgba(72, 187, 120, 0.7), transparent),
-    radial-gradient(1px 1px at 1150px 200px, rgba(0, 119, 182, 0.6), transparent),
-    radial-gradient(1px 1px at 1250px 40px, rgba(255,255,255,0.7), transparent),
-    radial-gradient(1px 1px at 1350px 160px, rgba(0, 180, 216, 0.8), transparent),
-    radial-gradient(1px 1px at 1450px 90px, rgba(72, 187, 120, 0.6), transparent),
+    radial-gradient(
+      1px 1px at 1050px 120px,
+      rgba(72, 187, 120, 0.7),
+      transparent
+    ),
+    radial-gradient(
+      1px 1px at 1150px 200px,
+      rgba(0, 119, 182, 0.6),
+      transparent
+    ),
+    radial-gradient(
+      1px 1px at 1250px 40px,
+      rgba(255, 255, 255, 0.7),
+      transparent
+    ),
+    radial-gradient(
+      1px 1px at 1350px 160px,
+      rgba(0, 180, 216, 0.8),
+      transparent
+    ),
+    radial-gradient(
+      1px 1px at 1450px 90px,
+      rgba(72, 187, 120, 0.6),
+      transparent
+    ),
     /* Medium glowing stars */
-    radial-gradient(3px 3px at 200px 200px, rgba(0, 180, 216, 0.5), transparent),
+      radial-gradient(
+        3px 3px at 200px 200px,
+        rgba(0, 180, 216, 0.5),
+        transparent
+      ),
     radial-gradient(3px 3px at 400px 50px, rgba(72, 187, 120, 0.4), transparent),
     radial-gradient(3px 3px at 600px 180px, rgba(0, 119, 182, 0.5), transparent),
-    radial-gradient(3px 3px at 800px 100px, rgba(255,255,255, 0.4), transparent),
-    radial-gradient(3px 3px at 1000px 150px, rgba(0, 180, 216, 0.4), transparent),
-    radial-gradient(3px 3px at 1200px 220px, rgba(72, 187, 120, 0.5), transparent),
+    radial-gradient(
+      3px 3px at 800px 100px,
+      rgba(255, 255, 255, 0.4),
+      transparent
+    ),
+    radial-gradient(
+      3px 3px at 1000px 150px,
+      rgba(0, 180, 216, 0.4),
+      transparent
+    ),
+    radial-gradient(
+      3px 3px at 1200px 220px,
+      rgba(72, 187, 120, 0.5),
+      transparent
+    ),
     radial-gradient(3px 3px at 1400px 70px, rgba(0, 119, 182, 0.4), transparent),
-    radial-gradient(3px 3px at 1600px 190px, rgba(255,255,255, 0.3), transparent),
+    radial-gradient(
+      3px 3px at 1600px 190px,
+      rgba(255, 255, 255, 0.3),
+      transparent
+    ),
     /* Large distant stars */
-    radial-gradient(5px 5px at 300px 300px, rgba(0, 119, 182, 0.3), transparent),
-    radial-gradient(5px 5px at 700px 250px, rgba(72, 187, 120, 0.25), transparent),
+      radial-gradient(
+        5px 5px at 300px 300px,
+        rgba(0, 119, 182, 0.3),
+        transparent
+      ),
+    radial-gradient(
+      5px 5px at 700px 250px,
+      rgba(72, 187, 120, 0.25),
+      transparent
+    ),
     radial-gradient(5px 5px at 900px 50px, rgba(0, 180, 216, 0.3), transparent),
-    radial-gradient(5px 5px at 1100px 280px, rgba(255,255,255, 0.2), transparent),
-    radial-gradient(5px 5px at 1300px 120px, rgba(0, 180, 216, 0.25), transparent),
-    radial-gradient(5px 5px at 1500px 200px, rgba(72, 187, 120, 0.2), transparent);
+    radial-gradient(
+      5px 5px at 1100px 280px,
+      rgba(255, 255, 255, 0.2),
+      transparent
+    ),
+    radial-gradient(
+      5px 5px at 1300px 120px,
+      rgba(0, 180, 216, 0.25),
+      transparent
+    ),
+    radial-gradient(
+      5px 5px at 1500px 200px,
+      rgba(72, 187, 120, 0.2),
+      transparent
+    );
   background-repeat: repeat;
   background-size: 1600px 400px;
   animation: sparkle 50s linear infinite;
@@ -79,51 +178,92 @@ body::before {
 }
 
 @keyframes sparkle {
-  from { transform: translateY(0px); }
-  to { transform: translateY(-400px); }
+  from {
+    transform: translateY(0px);
+  }
+  to {
+    transform: translateY(-400px);
+  }
 }
 
 /* Twinkling star layer */
 body::after {
-  content: '';
+  content: "";
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: 
-    radial-gradient(2px 2px at 100px 100px, rgba(0, 180, 216, 0.6), transparent),
-    radial-gradient(2px 2px at 300px 200px, rgba(72, 187, 120, 0.5), transparent),
+  background: radial-gradient(
+      2px 2px at 100px 100px,
+      rgba(0, 180, 216, 0.6),
+      transparent
+    ),
+    radial-gradient(
+      2px 2px at 300px 200px,
+      rgba(72, 187, 120, 0.5),
+      transparent
+    ),
     radial-gradient(2px 2px at 500px 50px, rgba(0, 119, 182, 0.6), transparent),
-    radial-gradient(2px 2px at 700px 150px, rgba(255,255,255, 0.5), transparent),
+    radial-gradient(
+      2px 2px at 700px 150px,
+      rgba(255, 255, 255, 0.5),
+      transparent
+    ),
     radial-gradient(2px 2px at 900px 100px, rgba(0, 180, 216, 0.5), transparent),
-    radial-gradient(2px 2px at 1100px 250px, rgba(72, 187, 120, 0.4), transparent),
+    radial-gradient(
+      2px 2px at 1100px 250px,
+      rgba(72, 187, 120, 0.4),
+      transparent
+    ),
     radial-gradient(2px 2px at 1300px 80px, rgba(0, 119, 182, 0.5), transparent),
-    radial-gradient(2px 2px at 1500px 180px, rgba(255,255,255, 0.4), transparent),
-    radial-gradient(2px 2px at 1700px 120px, rgba(0, 180, 216, 0.5), transparent),
-    radial-gradient(2px 2px at 1900px 220px, rgba(72, 187, 120, 0.4), transparent),
+    radial-gradient(
+      2px 2px at 1500px 180px,
+      rgba(255, 255, 255, 0.4),
+      transparent
+    ),
+    radial-gradient(
+      2px 2px at 1700px 120px,
+      rgba(0, 180, 216, 0.5),
+      transparent
+    ),
+    radial-gradient(
+      2px 2px at 1900px 220px,
+      rgba(72, 187, 120, 0.4),
+      transparent
+    ),
     radial-gradient(2px 2px at 2100px 60px, rgba(0, 119, 182, 0.5), transparent),
-    radial-gradient(2px 2px at 2300px 160px, rgba(255,255,255, 0.4), transparent);
+    radial-gradient(
+      2px 2px at 2300px 160px,
+      rgba(255, 255, 255, 0.4),
+      transparent
+    );
   background-repeat: repeat;
   background-size: 2400px 500px;
-  animation: twinkle 8s ease-in-out infinite alternate, sparkle 70s linear infinite reverse;
+  animation: twinkle 8s ease-in-out infinite alternate,
+    sparkle 70s linear infinite reverse;
   pointer-events: none;
   z-index: -1;
 }
 
 @keyframes twinkle {
-  0% { opacity: 0.3; }
-  100% { opacity: 1; }
+  0% {
+    opacity: 0.3;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 .glass {
-  background: rgba(255,255,255,0.05);
+  background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .shadow-glow {
-  box-shadow: 0 10px 30px rgba(0, 119, 182, 0.15), 0 0 40px rgba(0, 180, 216, 0.1);
+  box-shadow: 0 10px 30px rgba(0, 119, 182, 0.15),
+    0 0 40px rgba(0, 180, 216, 0.1);
 }
 
 .water-ripple {
@@ -132,7 +272,7 @@ body::after {
 }
 
 .water-ripple::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 50%;
   left: 50%;
@@ -163,18 +303,23 @@ body::after {
 }
 
 .wave-divider::before {
-  content: '';
+  content: "";
   position: absolute;
   bottom: 0;
   left: 0;
   width: 100%;
   height: 100px;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 120' preserveAspectRatio='none'%3E%3Cpath d='M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z' fill='%230077b6' fill-opacity='0.1'/%3E%3C/svg%3E") repeat-x;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 120' preserveAspectRatio='none'%3E%3Cpath d='M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z' fill='%230077b6' fill-opacity='0.1'/%3E%3C/svg%3E")
+    repeat-x;
   background-size: 1200px 100px;
   animation: wave 10s linear infinite;
 }
 
 @keyframes wave {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-1200px); }
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-1200px);
+  }
 }

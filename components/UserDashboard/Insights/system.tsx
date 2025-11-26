@@ -6,9 +6,9 @@ interface SystemProps {
   tankDimension?: string;
   tankCapacity?: number | string;
   tankUtilization?: number | string;
-  tankDemandCoverage?: number | string;
+  tankremainingCapacity?: number | string;
   tankOverflow?: boolean | string;
-  tankOverflowLoss?: string | string;
+  tankOverflowRisk?: string | string;
   tankEfficiency?: number | string;
 
   rechargeType?: string;
@@ -153,15 +153,17 @@ function computeOverflow(
 export default function System(props: SystemProps) {
   const tank = {
     type: props.tankType ?? "Storage Tank",
+    dimension: props.tankDimension,
     capacity: props.tankCapacity?.toLocaleString() ?? "---",
     utilization: props.tankUtilization ?? 0,
-    demandCoverage: props.tankDemandCoverage ?? 45,
-    overflowLoss: props.tankOverflowLoss ?? "0",
+    remainingCapacity: props.tankremainingCapacity ?? 45,
+    overflowLoss: props.tankOverflowRisk ?? "0",
     efficiency: props.tankEfficiency ?? 78,
   };
 
   const pit = {
     type: props.rechargeType ?? "Recharge Pit",
+    dimensions: props.rechargeDimension,
     capacity: props.rechargeCapacity?.toLocaleString() ?? "---",
     infiltrationRate: props.rechargeInfiltrationRate ?? "25 mm/hr",
     rechargeEfficiency: props.rechargeEfficiency ?? 68,
@@ -174,12 +176,12 @@ export default function System(props: SystemProps) {
   //   props.tankUtilization ?? 0,
   //   props.rechargeCapacity ?? 0,
   //   props.rechargeEfficiency ?? 0,
-  //   Number(props.tankOverflowLoss) ?? 0 // or incoming rainfall
+  //   Number(props.tankOverflowRisk) ?? 0 // or incoming rainfall
   // );
   const result = computeOverflow(
     Boolean(props.tankOverflow) ?? false,
     Boolean(props.rechargeOverflow) ?? false,
-    Number(props.tankOverflowLoss) || 0
+    Number(props.tankOverflowRisk) || 0
   );
 
   // const [tankOverflow, setTankOverflow] = useState<boolean>(false);
@@ -210,15 +212,16 @@ export default function System(props: SystemProps) {
             </h5>
 
             <div className="space-y-2 text-sm text-white/80 mb-5">
+              <Metric label="Dimensions" value={`${pit.dimensions}`} />
               <Metric label="Capacity" value={`${pit.capacity} L`} />
               <Metric
                 label="Infiltration Rate"
                 value={`${pit.infiltrationRate} mm/hr`}
               />
-              <Metric
+              {/* <Metric
                 label="Recharge Efficiency"
                 value={`${pit.rechargeEfficiency}%`}
-              />
+              /> */}
               <Metric label="Overflow Risk" value={`${pit.overflowRisk}%`} />
               {/* <Metric label="Silt Level" value={`${pit.siltLevel}%`} /> */}
             </div>
@@ -257,6 +260,7 @@ export default function System(props: SystemProps) {
             </h5>
 
             <div className="space-y-2 text-sm text-white/80 mb-6">
+              <Metric label="Dimensions" value={`${tank.dimension}`} />
               <Metric label="Capacity" value={`${tank.capacity} L`} />
               {/* <Metric
                 label="Demand Coverage"
@@ -264,13 +268,13 @@ export default function System(props: SystemProps) {
               /> */}
               <Metric
                 label="Remaining Capacity"
-                value={`${tank.demandCoverage} L`}
+                value={`${tank.remainingCapacity} L`}
               />
-              <Metric
+              {/* <Metric
                 label="Storage Efficiency"
                 value={`${tank.efficiency}%`}
-              />
-              <Metric label="Overflow Loss" value={`${tank.overflowLoss} L`} />
+              /> */}
+              <Metric label="Overflow Risk" value={`${tank.overflowLoss} %`} />
             </div>
 
             {/* OVERFLOW ALERT AT TOP */}
@@ -278,9 +282,9 @@ export default function System(props: SystemProps) {
             <OverflowMessage result={result} />
 
             <ProgressBar
-              title="Utilization"
+              title="Tank Efficiency"
               percent={
-                typeof tank.utilization === "number" ? tank.utilization : 0
+                typeof tank.efficiency === "number" ? tank.efficiency : 0
               }
               color="from-blue-400 to-blue-500"
             />

@@ -137,10 +137,10 @@ interface ReportData {
     groundwaterRecharge_litres_per_year: number;
     tankerTripsAvoided_per_year: number;
     sustainabilityRating:
-      | "Excellent"
-      | "Good"
-      | "Fair"
-      | "Needs Improvement";
+    | "Excellent"
+    | "Good"
+    | "Fair"
+    | "Needs Improvement";
     groundwaterDependencyReduction_pct: number;
     perCapitaWaterSaved_litres_per_year: number | null;
     householdsEquivalentWaterServed: number;
@@ -217,14 +217,19 @@ const Assessment = ({ rainfall }: { rainfall: number }) => {
         let assessmentDocId: string;
 
         if (!existingAssessments.empty) {
-          // Use existing assessment
+          // Use existing assessment and UPDATE it with new data
           const existingAssessment = existingAssessments.docs[0];
           assessmentDocId = existingAssessment.id;
-          const assessmentData = existingAssessment.data();
-          setAssessmentStatus(assessmentData.status || "processing");
-          if (assessmentData.error) {
-            setErrorMessage(assessmentData.error);
-          }
+
+          const assessmentRef = doc(firestore, "assessments", assessmentDocId);
+          await setDoc(assessmentRef, {
+            ...assessmentData,
+            userId: uid,
+            updatedAt: serverTimestamp(),
+            status: "processing" // Reset status to processing to show loading state
+          }, { merge: true });
+
+          setAssessmentStatus("processing");
         } else {
           // Create new assessment
           const newAssessmentRef = doc(collection(firestore, "assessments"));
@@ -239,8 +244,27 @@ const Assessment = ({ rainfall }: { rainfall: number }) => {
           });
         }
 
-        // Listen to assessment status
+        // Trigger feasibility calculation immediately
+        // We import this dynamically to avoid server/client issues if any
+        const { computeFeasibility } = await import("@/lib/computeFeasibility");
+
+        const reportObj = {
+          assessmentId: assessmentDocId,
+          ...(await computeFeasibility({
+            id: assessmentDocId,
+            ...assessmentData
+          })),
+        };
+
+        // Write report
+        const reportRef = doc(firestore, "reports", assessmentDocId);
+        await setDoc(reportRef, reportObj);
+
+        // Update status to done
         const assessmentRef = doc(firestore, "assessments", assessmentDocId);
+        await setDoc(assessmentRef, { status: "done" }, { merge: true });
+
+        // Listen to assessment status (for any external updates)
         const unsubscribeAssessment = onSnapshot(assessmentRef, (snapshot) => {
           if (snapshot.exists()) {
             const data = snapshot.data();
@@ -252,100 +276,24 @@ const Assessment = ({ rainfall }: { rainfall: number }) => {
           }
         });
 
-        // Listen to report with maximum wait time
-        const reportRef = doc(firestore, "reports", assessmentDocId);
-        let reportCheckTimeout: NodeJS.Timeout | null = null;
-        const maxWaitTime = 10000; // 15 seconds maximum wait
-        const startTime = Date.now();
-
-        // Set maximum timeout
-        const maxTimeout = setTimeout(() => {
-          if (!report) {
-            setLoading(false);
-            setAssessmentStatus("error");
-            setErrorMessage(
-              "Assessment is taking longer than expected. Please refresh the page."
-            );
-          }
-        }, maxWaitTime);
-
+        // Listen to report
         const unsubscribeReport = onSnapshot(reportRef, (snapshot) => {
           if (snapshot.exists()) {
             const reportData = snapshot.data() as ReportData;
             setReport(reportData);
             setAssessmentStatus("done");
             setLoading(false);
-            clearTimeout(maxTimeout);
-            if (reportCheckTimeout) {
-              clearTimeout(reportCheckTimeout);
-              reportCheckTimeout = null;
-            }
-          } else {
-            // Check if we've exceeded max wait time
-            const elapsed = Date.now() - startTime;
-            if (elapsed > maxWaitTime) {
-              clearTimeout(maxTimeout);
-              setLoading(false);
-              setAssessmentStatus("error");
-              setErrorMessage("Assessment timeout. Please try again.");
-              return;
-            }
-
-            // Check assessment status to determine if we should wait
-            const assessmentDoc = doc(
-              firestore,
-              "assessments",
-              assessmentDocId
-            );
-            getDoc(assessmentDoc)
-              .then((assessmentSnap) => {
-                if (assessmentSnap.exists()) {
-                  const assessmentData = assessmentSnap.data();
-                  const status = assessmentData?.status || "processing";
-
-                  if (status === "error") {
-                    clearTimeout(maxTimeout);
-                    setAssessmentStatus("error");
-                    setErrorMessage(assessmentData?.error || "Unknown error");
-                    setLoading(false);
-                  } else if (status === "done") {
-                    // Assessment marked as done but report missing - wait a bit
-                    if (!reportCheckTimeout) {
-                      reportCheckTimeout = setTimeout(() => {
-                        clearTimeout(maxTimeout);
-                        setLoading(false);
-                      }, 2000); // Reduced to 2 seconds
-                    }
-                  } else {
-                    // Still processing, keep loading (but check timeout)
-                    if (elapsed < maxWaitTime) {
-                      setLoading(true);
-                    }
-                  }
-                } else {
-                  clearTimeout(maxTimeout);
-                  setLoading(false);
-                }
-              })
-              .catch(() => {
-                clearTimeout(maxTimeout);
-                setLoading(false);
-              });
           }
         });
 
         return () => {
           unsubscribeAssessment();
           unsubscribeReport();
-          clearTimeout(maxTimeout);
-          if (reportCheckTimeout) {
-            clearTimeout(reportCheckTimeout);
-          }
         };
       } catch (error) {
         console.error("Error creating/checking assessment:", error);
         setAssessmentStatus("error");
-        setErrorMessage("Failed to create assessment. Please try again.");
+        setErrorMessage("Failed to update assessment. Please try again.");
         setLoading(false);
       }
     },
@@ -498,36 +446,36 @@ const Assessment = ({ rainfall }: { rainfall: number }) => {
   const roofRainCaptured = sqftToM2(Number(area)) * mmToM(rainfall) * 1000;
   const feasibility = report
     ? {
-        feasible: report.category !== "Low",
-        reason:
-          report.explanation ||
-          "Feasibility assessment in progress.",
-      }
+      feasible: report.category !== "Low",
+      reason:
+        report.explanation ||
+        "Feasibility assessment in progress.",
+    }
     : assessmentStatus === "processing"
-    ? {
+      ? {
         feasible: false,
         reason:
           "Generating feasibility assessment... This may take a few moments.",
       }
-    : assessmentStatus === "error"
-    ? {
-        feasible: false,
-        reason:
-          errorMessage ||
-          "An error occurred while generating the assessment. Please try again.",
-      }
-    : assessmentStatus === "none"
-    ? {
-        feasible: false,
-        reason:
-          errorMessage ||
-          "Please complete your profile information to generate an assessment.",
-      }
-    : {
-        feasible: false,
-        reason:
-          "Assessment data not available. Please ensure your profile information is complete.",
-      };
+      : assessmentStatus === "error"
+        ? {
+          feasible: false,
+          reason:
+            errorMessage ||
+            "An error occurred while generating the assessment. Please try again.",
+        }
+        : assessmentStatus === "none"
+          ? {
+            feasible: false,
+            reason:
+              errorMessage ||
+              "Please complete your profile information to generate an assessment.",
+          }
+          : {
+            feasible: false,
+            reason:
+              "Assessment data not available. Please ensure your profile information is complete.",
+          };
 
   const [data, setData] = useState<RechargeRecommendProps | null>(null);
   const [aiLoading, setAILoading] = useState(true);
@@ -556,14 +504,14 @@ const Assessment = ({ rainfall }: { rainfall: number }) => {
         report={
           report
             ? {
-                assessmentId: report.assessmentId,
-                avgRainfall_mm: report.avgRainfall_mm,
-                litres_per_year: report.litres_per_year,
-                feasibilityScore: report.feasibilityScore,
-                category: report.category,
-                breakdown: report.breakdown,
-                explanation: report.explanation,
-              }
+              assessmentId: report.assessmentId,
+              avgRainfall_mm: report.avgRainfall_mm,
+              litres_per_year: report.litres_per_year,
+              feasibilityScore: report.feasibilityScore,
+              category: report.category,
+              breakdown: report.breakdown,
+              explanation: report.explanation,
+            }
             : undefined
         }
       />
@@ -573,18 +521,16 @@ const Assessment = ({ rainfall }: { rainfall: number }) => {
         <div className="flex gap-3 mb-4 justify-evenly">
           <button
             onClick={() => setMode("jal")}
-            className={`px-4 py-2 rounded-xl transition cursor-pointer text-xl ${
-              mode === "jal" ? "text-teal-300" : "text-gray-400"
-            }`}
+            className={`px-4 py-2 rounded-xl transition cursor-pointer text-xl ${mode === "jal" ? "text-teal-300" : "text-gray-400"
+              }`}
           >
             JalYantra Mode
           </button>
 
           <button
             onClick={() => getRecommendations()}
-            className={`px-4 py-2 rounded-xl transition cursor-pointer text-xl ${
-              mode === "ai" ? "text-teal-300" : "text-gray-400"
-            }`}
+            className={`px-4 py-2 rounded-xl transition cursor-pointer text-xl ${mode === "ai" ? "text-teal-300" : "text-gray-400"
+              }`}
           >
             AI Suggest Mode
           </button>
@@ -601,9 +547,9 @@ const Assessment = ({ rainfall }: { rainfall: number }) => {
               feasibility={
                 report
                   ? {
-                      category: report.category,
-                      score: report.feasibilityScore,
-                    }
+                    category: report.category,
+                    score: report.feasibilityScore,
+                  }
                   : undefined
               }
             />

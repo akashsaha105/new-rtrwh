@@ -1,4 +1,5 @@
 // lib/computeFeasibility.ts
+// data we expect from the user 
 export type AssessmentInput = {
   id?: string;
   name?: string;
@@ -63,6 +64,7 @@ export type ReportOutput = {
 };
 
 // Defaults & constants (tune for your region)
+// These are the "magic numbers" used for calculations when real data is missing or for standard engineering assumptions.
 const RUNOFF_COEFF = 0.85;
 const DEFAULT_RAIN_MM = 800;
 const DEFAULT_GW_DEPTH_M = 15;
@@ -82,13 +84,14 @@ const PEOPLE_PER_HOUSEHOLD = 4;
 const KWH_PER_KL_PUMPING = 0.6; // energy to pump 1kL
 
 // normalize helper (0..100)
+// A utility to normalize any value into a 0-100 score. For example, if rainfall is between 200mm (score 0) and 2000mm (score 100), this function calculates where the actual rainfall lands on that scale.
 function norm(value: number, min: number, max: number) {
   if (!isFinite(value)) return 0;
   if (value <= min) return 0;
   if (value >= max) return 100;
   return Math.round(((value - min) / (max - min)) * 100);
 }
-
+// the core physics formula: Area * Rainfall * Efficiency
 function calcRunoffLitresPerYear(
   area_m2: number,
   avgRain_mm: number,
@@ -97,6 +100,9 @@ function calcRunoffLitresPerYear(
   // 1 mm on 1 m^2 = 1 litre
   return Math.round(area_m2 * avgRain_mm * runoffCoeff);
 }
+
+
+// Calculates how big a recharge pit needs to be based on the volume of water captured. It uses geometry math (cylinder volume) to determine diameter and depth.
 
 function computePitDimensions(
   litresPerYear: number,
@@ -245,7 +251,7 @@ export async function computeFeasibility(assess: AssessmentInput): Promise<Repor
     });
   }
   // additional suggestion: conveyance to community recharge if roof very large but open space small
-  if (roofArea > 100 && openSpace < 4) {
+  if (roofArea > 100 && openSpace < 30) {
     recommendedStructures.unshift({
       type: "Convey runoff to community recharge or borewell (if available)",
       confidence: 70,

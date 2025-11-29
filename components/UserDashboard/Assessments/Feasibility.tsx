@@ -120,47 +120,74 @@ export default function Feasibility(props: Props) {
 
       const uid = currentUser.uid;
 
-      // Query assessments belonging to this user
-      const assessmentsQuery = query(
-        collection(firestore, "assessments"),
-        where("userId", "==", uid)
-      );
+      // 1. Fetch latest user profile data (rooftop, location, etc.)
+      const userDocRef = doc(firestore, "users", uid);
+      const userSnap = await getDoc(userDocRef);
 
-      const existingAssessments = await getDocs(assessmentsQuery);
-
-      if (existingAssessments.empty) {
-        alert("No assessment found for the current user.");
+      if (!userSnap.exists()) {
+        alert("User profile not found. Please update your profile first.");
         setLoading(false);
         return;
       }
 
-      // Pick the first assessment
-      const assessmentDoc = existingAssessments.docs[0];
-      const assessmentData = {
-        id: assessmentDoc.id,
-        ...assessmentDoc.data(),
-      } as assessmentData;
+      const userData = userSnap.data();
+      const rooftop = userData.rooftop || {};
+      const userLoc = userData.location || {};
+      const geopoint = userData.geopoint || [0, 0];
 
-      // Compute the feasibility report
-      const reportObj = {
-        // ensure assessmentId is stored in the report
-        assessmentId: assessmentDoc.id,
-        ...(await computeFeasibility(assessmentData)),
+      // 2. Map to AssessmentInput
+      // Note: User inputs are in sq. ft., we need m2.
+      // 1 sq ft = 0.092903 m2
+      const SQFT_TO_M2 = 0.092903;
+
+      const roofAreaSqFt = parseFloat(rooftop.area || "0");
+      const openSpaceSqFt = parseFloat(rooftop.space || "0");
+
+      const assessmentInput = {
+        id: uid, // use uid as assessment id for simplicity in this flow
+        name: userData.fullName || "User Assessment",
+        location: {
+          lat: geopoint[0],
+          lng: geopoint[1],
+          address: userLoc.address,
+        },
+        dwellers: parseInt(rooftop.dwellers || "0", 10),
+        roofArea_m2: roofAreaSqFt * SQFT_TO_M2,
+        openSpace_m2: openSpaceSqFt * SQFT_TO_M2,
+        roofMaterial: rooftop.type,
+        // map other fields if needed
       };
 
-      // WRITE report into document named with *assessmentId* (to match useEffect)
-      const reportRef = doc(firestore, "reports", assessmentDoc.id);
+      // 3. Compute Feasibility
+      const result = await computeFeasibility(assessmentInput);
+
+      const reportObj = {
+        assessmentId: uid,
+        ...result,
+      };
+
+      // 4. Save Report
+      // We use the user UID as the document ID for the report to keep it 1:1
+      const reportRef = doc(firestore, "reports", uid);
       await setDoc(reportRef, reportObj);
 
-      // UPDATE assessment status
-      const assessmentRef = doc(firestore, "assessments", assessmentDoc.id);
-      await updateDoc(assessmentRef, {
-        status: "done",
-        // keep a reference if you need it
-        reportRef: `reports/${assessmentDoc.id}`,
-      });
+      // 5. Update/Create Assessment Record (to keep history or status)
+      // We can upsert an assessment doc with the same ID
+      const assessmentRef = doc(firestore, "assessments", uid);
+      await setDoc(
+        assessmentRef,
+        {
+          userId: uid,
+          status: "done",
+          reportRef: `reports/${uid}`,
+          updatedAt: new Date().toISOString(),
+          // save snapshot of input used
+          inputSnapshot: assessmentInput,
+        },
+        { merge: true }
+      );
 
-      console.log("Report successfully generated for assessment:", assessmentDoc.id);
+      console.log("Report successfully generated for user:", uid);
     } catch (e) {
       console.error("Generation Error:", e);
       alert("Failed to generate report. Check console.");
@@ -445,12 +472,12 @@ export default function Feasibility(props: Props) {
               )}
             </button>
 
-            <button
+            {/* <button
               onClick={() => window.location.reload()}
               className="px-6 py-3 rounded-xl border border-slate-700 bg-slate-800/50 text-slate-300 text-sm font-medium hover:bg-slate-800 hover:text-white transition-colors"
             >
               Refresh Data
-            </button>
+            </button> */}
           </div>
         </div>
       </div>

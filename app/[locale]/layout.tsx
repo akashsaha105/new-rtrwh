@@ -22,6 +22,10 @@ export const metadata: Metadata = {
     "AI-Powered Rainwater Harvesting Solutions for a Sustainable Future",
 };
 
+import FeasibilityUpdater from "@/components/FeasibilityUpdater";
+
+// ... existing imports
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -42,6 +46,7 @@ export default function RootLayout({
           <body
             className={`${geistSans.variable} ${geistMono.variable} antialiased`}
           >
+            <FeasibilityUpdater />
             <ConditionalNavbar />
             {children}
           </body>

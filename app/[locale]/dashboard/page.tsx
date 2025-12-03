@@ -15,11 +15,13 @@ import NoRoofTop from "@/components/UserDashboard/NoRooftop";
 import PDFReport from "@/components/UserDashboard/PdfReport";
 import Insights from "@/components/UserDashboard/Insights/Insights";
 import Community from "@/components/UserDashboard/Community";
-import InstallPage from "@/components/UserDashboard/Install";
+// import InstallPage from "@/components/UserDashboard/Install";
+import InstallPage from "@/components/UserDashboard/Install/Install2";
 import ProDashboard from "@/components/UserDashboard/ProUser";
 import ChatWidget from "@/components/ChatWidget";
 import { getPreviousMonthRange } from "@/utils/date";
 import RainfallStrip from "@/components/RainfallStrip";
+import Donate from "@/components/UserDashboard/Donate/Donate";
 
 export function mmToM(mm: number): number {
   return mm / 1000;
@@ -256,11 +258,12 @@ const Page = () => {
           {activeItem === "install" &&
             (hasRooftop ? (
               <>
-                <RainfallStrip
+                {/* <RainfallStrip
                   month={lastMonthName}
                   rainfall={rainfall}
                   rainCaptured={roofRainCaptured}
-                />
+                /> */}
+                {/* <InstallPage /> */}
                 <InstallPage />
               </>
             ) : (
@@ -314,6 +317,9 @@ const Page = () => {
 
           {/* Profile */}
           {activeItem === "profile" && <UserProfile />}
+
+          {/* Donating System */}
+          {activeItem === "donate" && <Donate />}
         </main>
       </div>
 

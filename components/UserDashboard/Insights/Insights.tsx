@@ -12,6 +12,7 @@ import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import HarvestedChart from "./HarvestedChart";
 import SeasonalTrend from "./SeasonalTrend";
 import Prediction from "./Prediction";
+import MaintenanceCard from "../Install/MaintenanceCard";
 
 interface LastMonthRainfall {
   lastMonthRainfall: number; // Rainfall in mm
@@ -724,6 +725,10 @@ const Insights = (LastMonthRainfall: LastMonthRainfall) => {
 
             {/* Seasonal Trend */}
             <SeasonalTrend data={monthlyPerformance} />
+          </div>
+
+          <div>
+            {/* <MaintenanceCard /> */}
           </div>
 
           {/* Predictions & Recommendations */}

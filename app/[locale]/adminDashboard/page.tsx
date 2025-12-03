@@ -11,6 +11,8 @@ import Navbar from "@/components/AdminDashboard/NavBar";
 import Users from "@/components/AdminDashboard/Users";
 import Product from "@/components/AdminDashboard/Product";
 import OrdersPage from "@/components/AdminDashboard/Orders";
+import AdminNotification from "@/components/AdminDashboard/AdminNotification";
+import MaintenanceUsers from "@/components/AdminDashboard/MaintenanceUsers";
 
 const Page = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -67,14 +69,19 @@ const Page = () => {
             <Users />
           </div>
 
+          {/* Users */}
+          <div className={activeItem === "maintenance" ? "block" : "hidden"}>
+            <MaintenanceUsers />
+          </div>
+
           {/* Products */}
           <div className={activeItem === "products" ? "block" : "hidden"}>
             <Product />
           </div>
 
           {/* Analytics */}
-          <div className={activeItem === "analytics" ? "block" : "hidden"}>
-            <h1>Analytics</h1>
+          <div className={activeItem === "notifications" ? "block" : "hidden"}>
+            <AdminNotification />
           </div>
         </main>
       </div>

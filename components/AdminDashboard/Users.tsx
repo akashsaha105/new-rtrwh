@@ -15,6 +15,7 @@ interface User {
     address: string;
   };
   mode: string;
+  reward: number
 }
 
 const Users = () => {
@@ -40,6 +41,7 @@ const Users = () => {
           status: data.status || "Pending",
           location: { address: data.location?.address || "" },
           mode: data.mode || "free",
+          reward: data.reward
         };
       });
 
@@ -109,7 +111,7 @@ const Users = () => {
               <th className="px-4 py-3">👤 Name</th>
               <th className="px-4 py-3">📧 Email</th>
               <th className="px-4 py-3">📱 Phone Number</th>
-              <th className="px-4 py-3">🏠 Address</th>
+              <th className="px-4 py-3">🏠 Reward</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3 text-center">Mode</th>
               <th className="px-4 py-3 text-center">Actions</th>
@@ -126,7 +128,7 @@ const Users = () => {
                   <td className="px-4 py-3 font-medium">{user.fullName}</td>
                   <td className="px-4 py-3">{user.email}</td>
                   <td className="px-10 py-3">{user.phoneNumber}</td>
-                  <td className="px-4 py-3">{user.location.address}</td>
+                  <td className="px-4 py-3">{user.reward}</td>
 
                   <td className="px-4 py-3">
                     <span

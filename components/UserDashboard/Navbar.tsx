@@ -87,7 +87,7 @@ const Navbar: React.FC<DashboardHeaderProps> = ({
           {status}
         </span>
 
-        <div className="pr-5">
+        <div className="pr-5" onClick={() => setActiveItem("donate")}>
           <RewardBadge />
         </div>
         {/* Notification Icon */}

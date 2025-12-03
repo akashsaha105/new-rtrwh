@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { firestore } from "@/firebase";
-import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
 import { useParams } from "next/navigation";
 import { CheckCircle, Cog, Layers, Loader2 } from "lucide-react";
 
@@ -26,6 +26,13 @@ function parseDimensions(input: string) {
 export default function Page() {
   const { id } = useParams();
   const userId = id as string;
+  const [name, setName] = useState("John Doe");
+  const [email, setEmail] = useState("john@example.com");
+  const [phone, setPhone] = useState("+91 9876543210");
+  const [stateName, setStateName] = useState("West Bengal");
+  const [city, setCity] = useState("Kolkata");
+  const [location, setLocation] = useState("Salt Lake Sector 5");
+  const [rewards, setRewards] = useState(120);
 
   const [mode, setMode] = useState("");
   const [status, setStatus] = useState("pending"); // new default
@@ -57,8 +64,18 @@ export default function Page() {
 
     if (snap.exists()) {
       const data = snap.data();
+
       setMode(data.mode || "");
       setStatus(data.status || "pending");
+
+      // New fields (fallback to dummy values)
+      setName(data.fullName || "John Doe");
+      setEmail(data.email || "john@example.com");
+      setPhone(data.phoneNumber || "+91 9876543210");
+      setStateName(data.location.state || "West Bengal");
+      setCity(data.location.city || "Kolkata");
+      setLocation(data.location.address || "Salt Lake Sector 5");
+      setRewards(data.reward || 120);
     }
   };
 
@@ -76,29 +93,65 @@ export default function Page() {
 
     // STEP 2 → Admin configures installation structure
     else if (step === 2) {
-      const rechargeDims = `${rechargeLength} x ${rechargeWidth} x ${rechargeDepth}`
-      const storagegeDims = `${storageLength} x ${storageWidth} x ${storageDepth}`
+      const rechargeDims = `${rechargeLength} x ${rechargeWidth} x ${rechargeDepth}`;
+      const storageDims = `${storageLength} x ${storageWidth} x ${storageDepth}`;
 
-      const modeCollection = doc(firestore, mode, userId);
-      await setDoc(
-        modeCollection,
-        {
-          recharge: {
-            dimension: rechargeDims,
-            infiltrationRate: Number(infiltrationRate),
-            sensorDistance: Number(rechargeDepth),
-            overflow: false,
-            overflowReading: 0,
+      const standardRef = doc(firestore, "standard", userId);
+      const modeRef = doc(firestore, mode, userId);
+
+      const rechargePayload = {
+        dimension: rechargeDims,
+        infiltrationRate: Number(infiltrationRate),
+        sensorDistance: Number(rechargeDepth),
+        overflow: false,
+        overflowReading: 0,
+      };
+
+      const storagePayload = {
+        dimension: storageDims,
+        sensorDistance: Number(storageDepth),
+        overflow: false,
+        overflowReading: 0,
+      };
+
+      if (mode === "pro") {
+        // Check if standard already exists (NO SNAPSHOT)
+        const snap = await getDoc(standardRef);
+
+        if (!snap.exists()) {
+          // Create standard first
+          await setDoc(
+            standardRef,
+            {
+              mStatus: "pending",
+              recharge: rechargePayload,
+              storage: storagePayload,
+            },
+            { merge: true }
+          );
+        } else {
+          // Write inside mode collection
+          await setDoc(
+            modeRef,
+            {
+              recharge: rechargePayload,
+              storage: storagePayload,
+            },
+            { merge: true }
+          );
+        }
+      } else {
+        // STANDARD MODE
+        await setDoc(
+          modeRef,
+          {
+            mStatus: "pending",
+            recharge: rechargePayload,
+            storage: storagePayload,
           },
-          storage: {
-            dimension: storagegeDims,
-            sensorDistance: Number(storageDepth),
-            overflow: false,
-            overflowReading: 0,
-          },
-        },
-        { merge: true }
-      );
+          { merge: true }
+        );
+      }
 
       await updateDoc(doc(firestore, "users", userId), {
         status: "configuring",
@@ -119,7 +172,7 @@ export default function Page() {
     }
 
     setLoading(false);
-    if (step < 3) setStep(step + 1);
+    if (step < 3) setStep((prev) => prev + 1);
   };
 
   const stepText = ["Verify Mode", "Configure System", "Activate System"];
@@ -135,6 +188,48 @@ export default function Page() {
         <h1 className="text-3xl font-bold text-center mb-6">
           Admin Installation Dashboard
         </h1>
+
+        {/* USER DETAILS CARD */}
+        <div className="bg-black/20 p-5 rounded-xl mb-6 border border-white/20">
+          <h2 className="text-xl font-semibold mb-4">User Information</h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-gray-300">Name</p>
+              <p className="font-medium">{name}</p>
+            </div>
+
+            <div>
+              <p className="text-sm text-gray-300">Email</p>
+              <p className="font-medium">{email}</p>
+            </div>
+
+            <div>
+              <p className="text-sm text-gray-300">Phone Number</p>
+              <p className="font-medium">{phone}</p>
+            </div>
+
+            <div>
+              <p className="text-sm text-gray-300">Rewards</p>
+              <p className="font-medium text-yellow-300">{rewards} Points</p>
+            </div>
+
+            <div>
+              <p className="text-sm text-gray-300">State</p>
+              <p className="font-medium">{stateName}</p>
+            </div>
+
+            <div>
+              <p className="text-sm text-gray-300">City</p>
+              <p className="font-medium">{city}</p>
+            </div>
+
+            <div className="md:col-span-2">
+              <p className="text-sm text-gray-300">Location</p>
+              <p className="font-medium">{location}</p>
+            </div>
+          </div>
+        </div>
 
         <div className="bg-black/20 p-4 rounded-xl mb-6">
           <p className="text-lg">
@@ -248,7 +343,7 @@ export default function Page() {
 
         {/* Process Button */}
         <button
-          onClick={handleProcess}
+          onClick={() => handleProcess()}
           disabled={loading}
           className="w-full py-3 mt-10 rounded-xl bg-blue-600 hover:bg-blue-700 transition flex justify-center items-center gap-3"
         >

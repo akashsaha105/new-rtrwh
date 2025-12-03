@@ -1,18 +1,44 @@
 "use client";
 
-import React from "react";
-import { DiamondIcon, DollarSign } from "lucide-react";
+import React, { useState } from "react";
+import { DollarSign } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
+import { auth, firestore } from "@/firebase";
+import { doc, getDoc } from "firebase/firestore";
 
 export default function RewardBadge() {
-    const count = 0;
-    // const reduction = "Rewards"
-    const router = useRouter();
-    const pathname = usePathname();
-    const lang = pathname.split("/")[1] || "en";
-  return (
-    <div className="relative group cursor-pointer select-none" onClick={() => router.push(`/${lang}/dashboard/reward`)}>
+  const [count, setCount] = useState(0);
+  // const reduction = "Rewards"
+  // const router = useRouter();
+  const pathname = usePathname();
+  const lang = pathname.split("/")[1] || "en";
 
+  React.useEffect(() => {
+    const fetchReward = async () => {
+      try {
+        const user = auth.currentUser;
+        if (!user) return;
+
+        const docRef = doc(firestore, "users", user.uid);
+        const snapshot = await getDoc(docRef);
+
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          setCount(data.reward || 0);
+        }
+      } catch (err) {
+        console.error("Failed to fetch reward points", err);
+      }
+    };
+
+    fetchReward();
+  }, []);
+
+  return (
+    <div
+      className="relative group cursor-pointer select-none"
+      // onClick={() => router.push(`/${lang}/dashboard/reward`)}
+    >
       {/* FULL BADGE */}
       <div
         className="

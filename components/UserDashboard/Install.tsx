@@ -2,7 +2,7 @@
 import { auth, firestore } from "@/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import React, { useEffect, useState } from "react";
-import RecommendedProducts from "./RecommendedProducts";
+import RecommendedProducts from "./Install/RecommendedProducts";
 import InstallType from "./InstallType";
 import { doc, getDoc } from "firebase/firestore";
 

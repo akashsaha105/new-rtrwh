@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useRef, useState, useEffect } from "react";
@@ -20,7 +21,7 @@ export default function ChatWidget() {
       id: uuid(),
       role: "assistant",
       content:
-        "💧 Hi! I’m **JalMitra**, your Rooftop Rainwater Harvesting guide.\n\nShare your city, roof area (m²), annual rainfall (mm), roof material, and intended use — I’ll help with calculations and suggestions.",
+        "Hi! I’m **JalMitra**, your Rooftop Rainwater Harvesting guide.\n\nShare your city, roof area (m²), annual rainfall (mm), roof material, and intended use — I’ll help with calculations and suggestions.",
     },
   ]);
 
@@ -29,6 +30,51 @@ export default function ChatWidget() {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const [recording, setRecording] = useState(false);
+  const [speakerOn, setSpeakerOn] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const SpeechRecognition =
+        (window as any).webkitSpeechRecognition ||
+        (window as any).SpeechRecognition;
+
+      if (SpeechRecognition) {
+        const recog = new SpeechRecognition();
+        recog.continuous = false;
+        recog.lang = "en-US";
+        recog.interimResults = false;
+
+        recog.onresult = (event: any) => {
+          const text = event.results[0][0].transcript;
+          setInput(text);
+        };
+
+        recog.onerror = (err: any) => {
+          console.error("Speech error:", err);
+        };
+
+        recognitionRef.current = recog;
+      }
+    }
+  }, []);
+
+  const startRecording = () => {
+    if (!recognitionRef.current) {
+      alert("Speech recognition not supported!");
+      return;
+    }
+
+    if (!recording) {
+      recognitionRef.current.start();
+      setRecording(true);
+    } else {
+      recognitionRef.current.stop();
+      setRecording(false);
+    }
   };
 
   useEffect(() => {
@@ -86,6 +132,28 @@ export default function ChatWidget() {
     }
   };
 
+  const speakLastAssistantMessage = () => {
+    const newState = !speakerOn; // compute the next state
+    setSpeakerOn(newState);
+
+    // If turning OFF → stop speaking
+    if (!newState) {
+      speechSynthesis.cancel();
+      return;
+    }
+
+    // If turning ON → speak the last assistant message
+    const lastAssistantMsg = [...messages]
+      .reverse()
+      .find((m) => m.role === "assistant");
+
+    if (!lastAssistantMsg) return;
+
+    const utterance = new SpeechSynthesisUtterance(lastAssistantMsg.content);
+    utterance.lang = "en-US";
+    speechSynthesis.speak(utterance);
+  };
+
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     sendMessage(input);
@@ -124,7 +192,9 @@ export default function ChatWidget() {
                 return (
                   <div
                     key={m.id}
-                    className={`flex ${isUser ? "justify-end" : "justify-start"}`}
+                    className={`flex ${
+                      isUser ? "justify-end" : "justify-start"
+                    }`}
                   >
                     <div
                       className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-4 py-2 text-sm shadow-md ${
@@ -165,6 +235,32 @@ export default function ChatWidget() {
                   placeholder="Ask JalMitra about tank size, recharge, filters…"
                 />
                 <button
+                  type="button"
+                  onClick={startRecording}
+                  className={`rounded-xl px-3 py-2 text-sm transition ${
+                    recording
+                      ? "bg-red-500 text-white hover:bg-red-600"
+                      : "bg-gray-200 text-gray-800 hover:bg-gray-300"
+                  }`}
+                >
+                  {recording ? "🎙️" : "🎤"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    speakLastAssistantMessage();
+                  }}
+                  className={`rounded-xl px-3 py-2 text-sm transition ${
+                    speakerOn
+                      ? "bg-green-500 text-white hover:bg-green-600"
+                      : "bg-gray-200 text-gray-800 hover:bg-gray-300"
+                  }`}
+                >
+                  {speakerOn ? "🔊" : "🔈"}
+                </button>
+
+                <button
                   type="submit"
                   disabled={loading || !input.trim()}
                   className="rounded-xl bg-blue-600 text-white px-4 py-2 text-sm disabled:opacity-50 hover:bg-blue-700 transition"
@@ -173,7 +269,8 @@ export default function ChatWidget() {
                 </button>
               </div>
               <p className="mt-1 text-[11px] text-gray-500">
-                Example: “Kolkata, 120 m² roof, 1600 mm/yr, concrete, non-potable”
+                Example: “Kolkata, 120 m² roof, 1600 mm/yr, concrete,
+                non-potable”
               </p>
             </form>
           </motion.div>

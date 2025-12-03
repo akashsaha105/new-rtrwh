@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Bars3Icon, ChartPieIcon, XMarkIcon } from "@heroicons/react/16/solid";
 import UserInfo from "./UserInfo";
-import { DownloadIcon, StoreIcon, User2, WorkflowIcon } from "lucide-react";
+import { BadgeCent, BellPlus, DownloadIcon, StoreIcon, User2, WorkflowIcon } from "lucide-react";
 
 interface DashboardSideBarProps {
   username?: string | null | undefined;
@@ -46,14 +46,19 @@ const SideBar: React.FC<DashboardSideBarProps> = ({
       icon: <WorkflowIcon width={width} height={height} />,
     },
     {
+      id: "maintenance",
+      name: "Maintenance",
+      icon: <BadgeCent width={width} height={height} />,
+    },
+    {
       id: "products",
       name: "Products",
       icon: <StoreIcon width={width} height={height} />,
     },
     {
-      id: "analytics",
-      name: "Analytics",
-      icon: <User2 width={width} height={height} />,
+      id: "notifications",
+      name: "Notifications",
+      icon: <BellPlus width={width} height={height} />,
     },
   ];
   

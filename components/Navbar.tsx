@@ -15,6 +15,7 @@ import { auth } from "@/firebase";
 import { useDispatch } from "react-redux";
 // import LoadingPage from "./Loading";
 import DashboardButton from "./Button";
+import NGOCircleButton from "./NGO/Button";
 
 interface NavbarProps {
   t?: {
@@ -245,6 +246,7 @@ useEffect(() => {
             <>
               <LoginModal />
               <SignupModal />
+              <NGOCircleButton />
             </>
           )}
         </div>

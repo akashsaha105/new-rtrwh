@@ -5,6 +5,8 @@ import { onAuthStateChanged, updateProfile, User } from "firebase/auth";
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { MapPinIcon } from "lucide-react";
 import React, { useEffect, useState } from "react";
+import AutocompleteInput from "./AutoComplete";
+import InlineCityInput from "./InlineCityInput";
 
 function toTitleCase(str: string) {
   return str
@@ -13,6 +15,33 @@ function toTitleCase(str: string) {
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
 }
+
+const cityList = [
+  "Kolkata",
+  "Delhi",
+  "Mumbai",
+  "Pune",
+  "Bengaluru",
+  "Hyderabad",
+  "Chennai",
+  "Kalyani",
+  "Howrah",
+  "Durgapur",
+];
+
+const addressList = [
+  "Sector 1",
+  "Sector 2",
+  "Sector 3",
+  "Block A",
+  "Block B",
+  "Block C",
+  "Near Railway Station",
+  "Near Bus Stand",
+  "Main Market Road",
+  "Salt Lake City",
+  "Rajarhat Newtown",
+];
 
 interface FormData {
   username: string;
@@ -214,9 +243,14 @@ HANDLE FORM SUBMIT
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 w-full">
       {/* LEFT  — EDIT FORM  */}
       <div className="col-span-2 px-8 pt-2 w-150 rounded-2xl">
-        <h2 className="text-2xl font-bold text-teal-300 mb-5 ml-3">Edit Profile</h2>
+        <h2 className="text-2xl font-bold text-teal-300 mb-5 ml-3">
+          Edit Profile
+        </h2>
 
-        <form className="flex flex-col gap-8 bg-slate-900/70 backdrop-blur-lg border border-slate-700 shadow-lg hover:shadow-xl rounded-2xl p-7" onSubmit={handleSubmit}>
+        <form
+          className="flex flex-col gap-8 bg-slate-900/70 backdrop-blur-lg border border-slate-700 shadow-lg hover:shadow-xl rounded-2xl p-7"
+          onSubmit={handleSubmit}
+        >
           {/* FULL NAME + USERNAME */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Full Name */}
@@ -281,20 +315,21 @@ HANDLE FORM SUBMIT
             />
           </div>
 
-          {/* STATE + CITY */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* State */}
-            <div className="w-full">
-              <label className="block text-sm font-medium text-teal-300 mb-1">
-                State
-              </label>
+          <div className="flex flex-col gap-6">
+            {/* STATE + CITY */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* State */}
+              <div className="w-full">
+                <label className="block text-sm font-medium text-teal-300 mb-1">
+                  State
+                </label>
 
-              <div className="relative">
-                <select
-                  name="state"
-                  value={formData.location.state}
-                  onChange={handleChange}
-                  className="
+                <div className="relative">
+                  <select
+                    name="state"
+                    value={formData.location.state}
+                    onChange={handleChange}
+                    className="
         w-full p-3 pr-10 rounded-lg
         bg-slate-900 text-white 
         border border-slate-600
@@ -302,90 +337,116 @@ HANDLE FORM SUBMIT
         outline-none transition
         appearance-none
       "
-                >
-                  <option value="" className="text-white">
-                    Select State
-                  </option>
-                  <option value="West Bengal" className="text-white">
-                    West Bengal
-                  </option>
-                  <option value="Maharastra" className="text-white">
-                    Maharastra
-                  </option>
-                  <option value="Delhi" className="text-white">
-                    Delhi
-                  </option>
-                </select>
+                  >
+                    <option value="" className="text-white">
+                      Select State
+                    </option>
+                    <option value="West Bengal" className="text-white">
+                      West Bengal
+                    </option>
+                    <option value="Maharastra" className="text-white">
+                      Maharastra
+                    </option>
+                    <option value="Delhi" className="text-white">
+                      Delhi
+                    </option>
+                  </select>
 
-                {/* Dropdown Arrow */}
-                <svg
-                  className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"
-                  fill="none"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    d="M6 8l4 4 4-4"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
+                  {/* Dropdown Arrow */}
+                  <svg
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"
+                    fill="none"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      d="M6 8l4 4 4-4"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
               </div>
-            </div>
 
-            {/* City */}
-            <div>
-              <label className="block text-sm font-medium text-teal-300 mb-1">
-                City
-              </label>
-              <input
-                type="text"
-                name="city"
-                value={formData.location.city}
-                onChange={handleChange}
-                placeholder="City"
-                className="
+              {/* City */}
+              <div>
+                {/* <label className="block text-sm font-medium text-teal-300 mb-1">
+                  City
+                </label> */}
+                {/* <input
+                  type="text"
+                  name="city"
+                  value={formData.location.city}
+                  onChange={handleChange}
+                  placeholder="City"
+                  className="
               w-full p-3 rounded-lg
               bg-slate-900 text-white border border-slate-600
               focus:border-teal-400 outline-none transition
               placeholder:text-slate-500
             "
-              />
+                /> */}
+
+                <InlineCityInput
+                  value={formData.location.city}
+                  onChange={(val) =>
+                    setFormData({
+                      ...formData,
+                      location: { ...formData.location, city: val },
+                    })
+                  }
+                />
+              </div>
             </div>
-          </div>
 
-          {/* ADDRESS */}
-          <div>
-            <label className="block text-sm font-medium text-teal-300 mb-1">
-              Address
-            </label>
+            {/* ADDRESS */}
+            <div>
+              {/* <label className="block text-sm font-medium text-teal-300 mb-1">
+                Address
+              </label> */}
 
-            <div className="flex gap-4">
-              <textarea
-                name="address"
-                value={formData.location.address}
-                onChange={handleChange}
-                placeholder="House No., Street, Locality"
-                className="
+              <div className="flex gap-4">
+                {/* <textarea
+                  name="address"
+                  value={formData.location.address}
+                  onChange={handleChange}
+                  placeholder="House No., Street, Locality"
+                  className="
               flex-1 p-3 rounded-lg
               bg-slate-900 text-white border border-slate-600
               focus:border-blue-400 outline-none transition
               placeholder:text-slate-500 resize-none
             "
-                rows={3}
-              />
+                  rows={3}
+                /> */}
 
-              {/* Location Button */}
-              <button
-                type="button"
-                onClick={detectLocation}
-                className="
+                <AutocompleteInput
+                  label="Address"
+                  name="address"
+                  value={formData.location.address}
+                  placeholder="House No., Street, Locality"
+                  // suggestions={addressList}
+                  onChange={handleChange}
+                  onSelect={(value) =>
+                    setFormData({
+                      ...formData,
+                      location: { ...formData.location, address: value },
+                    })
+                  }
+                />
+
+                {/* Location Button */}
+                <button
+                  type="button"
+                  onClick={detectLocation}
+                  className="
               h-12 w-12 flex items-center justify-center rounded-lg border border-teal-500 text-teal-100 hover:bg-teal-600 hover:text-white cursor-pointer transition
             "
-              >
-                {loadingLocation ? "…" : <MapPinIcon width={22} />}
-              </button>
+                >
+                  {loadingLocation ? "…" : <MapPinIcon width={22} />}
+                </button>
+              </div>
             </div>
           </div>
 

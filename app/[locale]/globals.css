@@ -54,6 +54,27 @@ body,
   max-width: 1200px;
 }
 
+/* Custom Slider Styling */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background: rgb(56, 189, 248); /* sky-400 */
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+  cursor: pointer;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  background: rgb(56, 189, 248);
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+  cursor: pointer;
+}
+
 /* Enhanced Glowing Star Background */
 body::before {
   content: "";

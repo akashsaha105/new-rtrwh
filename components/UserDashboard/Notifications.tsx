@@ -1,10 +1,19 @@
+/* eslint-disable jsx-a11y/alt-text */
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { auth, firestore } from "@/firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, updateDoc, onSnapshot, getDoc, setDoc } from "firebase/firestore";
+import {
+  doc,
+  updateDoc,
+  onSnapshot,
+  getDoc,
+  setDoc,
+  collection,
+} from "firebase/firestore";
 
 import { Bell, AlertTriangle, CloudRain, Waves, Trash2 } from "lucide-react";
 import { CheckBadgeIcon } from "@heroicons/react/24/solid";
@@ -13,139 +22,170 @@ interface NotificationItem {
   title: string;
   message: string;
   icon: string;
+  imgLink?: string;
+  ctaLink?: string;
 }
 
 export default function Notifications() {
   const [open, setOpen] = useState(false);
-  const [status, setStatus] = useState("inactive");
-  const [prevStatus, setPrevStatus] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
+  const [lastSeen, setLastSeen] = useState(0);
 
+  const previousStatus = useRef<string>("inactive");
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // ==============================
-  // Close popup on outside click
-  // ==============================
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  // ==============================
-  // Always push notification
-  // ==============================
+  // ===========================================================
+  // PUSH NOTIFICATION
+  // ===========================================================
   const pushNotification = async (item: NotificationItem) => {
     if (!userId) return;
 
     try {
       const ref = doc(firestore, "notifications", userId);
       const snap = await getDoc(ref);
-
       const existing = snap.exists() ? snap.data().notifications || [] : [];
 
-      // ✨ NEW: add item at the BOTTOM so order is bottom-to-top
-      const updated = [...existing, item];
+      const updated = [item, ...existing];
 
       await setDoc(ref, { notifications: updated }, { merge: true });
-
       setNotifications(updated);
+
+      // only update lastSeen if user actually got new notification
+      await updateDoc(doc(firestore, "users", userId), {
+        lastSeenNotification: Date.now(),
+      });
+
       setOpen(true);
     } catch (e) {
       console.log("Push error:", e);
     }
   };
 
-  // ==============================
-  // Auth + Realtime Listeners
-  // ==============================
+  // ===========================================================
+  // AUTH + LOAD USER + LOAD NOTIFICATIONS
+  // ===========================================================
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (currentUser) => {
-      if (!currentUser) return;
+    const unsub = onAuthStateChanged(auth, async (currentuser) => {
+      if (!currentuser) return;
+      setUserId(currentuser.uid);
 
-      setUserId(currentUser.uid);
+      // fetch user's last seen
+      const userRef = doc(firestore, "users", currentuser.uid);
+      const userSnap = await getDoc(userRef);
 
-      const userRef = doc(firestore, "users", currentUser.uid);
-      const notiRef = doc(firestore, "notifications", currentUser.uid);
+      const seen = userSnap.data()?.lastSeenNotification || 0;
+      setLastSeen(seen);
 
-      // USER STATUS LISTENER
-      const unsubUser = onSnapshot(userRef, (snap) => {
-        if (!snap.exists()) return;
+      // load notification list
+      const notifRef = doc(firestore, "notifications", currentuser.uid);
+      const notifSnap = await getDoc(notifRef);
 
-        const newStatus = snap.data().status ?? "inactive";
-
-        setStatus(newStatus);
-
-        // Fire notification ONLY IF status changed
-        if (prevStatus !== null && prevStatus !== newStatus) {
-          if (newStatus === "processing") {
-            pushNotification({
-              title: "Processing Started",
-              message: "Your system is now processing.",
-              icon: "AlertTriangle",
-            });
-          } else if (newStatus !== "inactive") {
-            pushNotification({
-              title: "System Ready",
-              message: `Your system is active in ${newStatus} mode.`,
-              icon: "CheckBadge",
-            });
-          }
-        }
-
-        setPrevStatus(newStatus);
-      });
-
-      // NOTIFICATION LIVE LISTENER
-      const unsubNoti = onSnapshot(notiRef, (snap) => {
-        if (!snap.exists()) {
-          setNotifications([]);
-          return;
-        }
-
-        const list = snap.data().notifications || [];
-
-        // WE DISPLAY BOTTOM → TOP, so list stays in natural order
-        setNotifications(list);
-      });
-
-      return () => {
-        unsubUser();
-        unsubNoti();
-      };
+      setNotifications(notifSnap.data()?.notifications || []);
     });
 
     return () => unsub();
-  }, [prevStatus]);
+  }, []);
 
-  // ==============================
-  // Delete Notification
-  // ==============================
+  // ===========================================================
+  // STATUS CHANGE DETECTOR
+  // ===========================================================
+  useEffect(() => {
+    if (!userId) return;
+
+    const userRef = doc(firestore, "users", userId);
+
+    let isHandling = false;
+
+    const unsub = onSnapshot(userRef, async (snapshot) => {
+      if (!snapshot.exists()) return;
+      if (isHandling) return; // 🧠 BLOCK loop re-entry
+
+      const data = snapshot.data();
+      const currentStatus = data.status;
+      const lastStatusNotified = data.lastStatusNotified || "inactive";
+
+      // no change → stop
+      if (currentStatus === lastStatusNotified) return;
+
+      // mark as handling to avoid second trigger
+      isHandling = true;
+
+      // fire notification
+      if (currentStatus !== "inactive") {
+        await pushNotification({
+          title: "Status Updated",
+          message: `Your status is now ${currentStatus}`,
+          icon: "CheckBadge",
+        });
+      }
+
+      // update server AFTER notification, and WITHOUT triggering snapshot loop
+      await updateDoc(userRef, {
+        lastStatusNotified: currentStatus,
+      });
+
+      // allow next snapshot after this finishes
+      setTimeout(() => (isHandling = false), 50);
+    });
+
+    return () => unsub();
+  }, [userId]);
+
+  // ===========================================================
+  // ADMIN BROADCAST LISTENER
+  // ===========================================================
+  useEffect(() => {
+    if (!userId) return;
+
+    const ref = collection(firestore, "admin-notification");
+
+    const unsub = onSnapshot(ref, (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type !== "added") return;
+
+        const data = change.doc.data();
+        const createdAt = data.createdAt?.toMillis?.() || 0;
+
+        if (createdAt <= lastSeen) return;
+
+        if (
+          data.sendTo === "all" ||
+          (data.sendTo === "single" && data.userId === userId)
+        ) {
+          pushNotification({
+            title: data.title,
+            message: data.message,
+            icon: data.type,
+            imgLink: data.imageURL,
+            ctaLink: data.ctaURL,
+          });
+        }
+      });
+    });
+
+    return () => unsub();
+  }, [userId, lastSeen]);
+
+  // ===========================================================
+  // DELETE NOTIFICATION
+  // ===========================================================
   const deleteNotification = async (index: number) => {
     if (!userId) return;
 
-    try {
-      const updated = [...notifications];
-      updated.splice(index, 1);
+    const updated = [...notifications];
+    updated.splice(index, 1);
 
-      await updateDoc(doc(firestore, "notifications", userId), {
-        notifications: updated,
-      });
+    await updateDoc(doc(firestore, "notifications", userId), {
+      notifications: updated,
+    });
 
-      setNotifications(updated);
-    } catch (e) {
-      console.log("Delete error:", e);
-    }
+    setNotifications(updated);
   };
 
-  // ==============================
-  // ICON renderer
-  // ==============================
+  // ===========================================================
+  // ICON SWITCHER
+  // ===========================================================
   const renderIcon = (icon: string) => {
     switch (icon) {
       case "CloudRain":
@@ -157,17 +197,24 @@ export default function Notifications() {
       case "CheckBadge":
         return <CheckBadgeIcon className="w-5 h-5 text-green-400" />;
       default:
-        return <AlertTriangle className="w-5 h-5 text-gray-400" />;
+        return <AlertTriangle className="w-5 h-5 text-yellow-400" />;
     }
   };
 
-  // ==============================
+  // ===========================================================
   // UI
-  // ==============================
+  // ===========================================================
   return (
-    <div className="relative inline-block" ref={dropdownRef}>
+    <div ref={dropdownRef}>
       <button
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          setOpen(true);
+          if (userId) {
+            updateDoc(doc(firestore, "users", userId), {
+              lastSeenNotification: Date.now(),
+            });
+          }
+        }}
         className="relative p-3 rounded-full bg-white/10 backdrop-blur-lg hover:bg-white/20 transition-all shadow-md"
       >
         <Bell className="w-5 h-5 text-white" />
@@ -181,48 +228,89 @@ export default function Notifications() {
 
       <AnimatePresence>
         {open && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: -5 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: -5 }}
-            transition={{ duration: 0.15 }}
-            className="absolute right-0 mt-3 w-80 bg-gray-900/80 text-white rounded-2xl shadow-xl backdrop-blur-xl border border-white/10"
-          >
-            <div className="p-4 border-b border-white/10 flex justify-between items-center">
-              <h4 className="font-semibold text-sm tracking-wide">Alerts</h4>
-            </div>
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.4 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 bg-black z-[9998]"
+              onClick={() => setOpen(false)}
+            />
 
-            {/* Bottom-to-top order → use flex-col-reverse */}
-            <div className="max-h-80 overflow-y-auto divide-y divide-white/5 flex flex-col-reverse">
-              {notifications.length === 0 && (
-                <p className="p-4 text-sm text-gray-300 text-center">
-                  No alerts available
-                </p>
-              )}
+            <motion.div
+              initial={{ x: 400 }}
+              animate={{ x: 0 }}
+              exit={{ x: 400 }}
+              transition={{ type: "spring", stiffness: 200, damping: 26 }}
+              className="fixed z-[9999] top-0 right-0 h-screen w-[380px]
+              bg-gray-900/95 backdrop-blur-2xl border-l border-white/10 
+              shadow-2xl flex flex-col"
+            >
+              <div className="p-5 border-b border-white/10 flex items-center justify-between">
+                <h4 className="font-semibold text-lg tracking-wide">
+                  Notifications
+                </h4>
 
-              {notifications.map((notify, i) => (
-                <div
-                  key={i}
-                  className="flex items-start justify-between gap-3 p-3 hover:bg-white/10 transition"
+                <button
+                  onClick={() => setOpen(false)}
+                  className="p-2 rounded-md hover:bg-white/10 transition"
                 >
-                  <div className="flex gap-3">
-                    {renderIcon(notify.icon)}
-                    <div>
-                      <p className="font-semibold">{notify.title}</p>
-                      <p className="text-xs text-gray-300">{notify.message}</p>
-                    </div>
-                  </div>
+                  ✕
+                </button>
+              </div>
 
-                  <button
-                    onClick={() => deleteNotification(i)}
-                    className="p-1 hover:bg-red-600/20 rounded-md"
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {notifications.length === 0 && (
+                  <p className="text-center text-gray-400 py-10">
+                    No notifications available
+                  </p>
+                )}
+
+                {notifications.map((n, i) => (
+                  <div
+                    key={i}
+                    className="relative bg-white/5 p-4 rounded-xl border 
+                    border-white/10 shadow-lg hover:bg-white/10 transition space-y-3"
                   >
-                    <Trash2 className="w-4 h-4 text-red-400" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </motion.div>
+                    <button
+                      onClick={() => deleteNotification(i)}
+                      className="absolute top-2 right-2 p-1 hover:bg-red-600/20 rounded-md"
+                    >
+                      <Trash2 className="w-4 h-4 text-red-400" />
+                    </button>
+
+                    <div className="flex items-center gap-3">
+                      {renderIcon(n.icon)}
+                      <p className="font-semibold text-sm">{n.title}</p>
+                    </div>
+
+                    <p className="text-[12px] text-gray-300 leading-relaxed">
+                      {n.message}
+                    </p>
+
+                    {n.imgLink && (
+                      <img
+                        src={n.imgLink}
+                        className="w-full max-h-40 object-cover rounded-lg shadow-md"
+                      />
+                    )}
+
+                    {n.ctaLink && (
+                      <a
+                        href={n.ctaLink}
+                        target="_blank"
+                        className="inline-block text-[11px] mt-1 font-medium 
+                        text-indigo-300 hover:text-indigo-400 underline break-all"
+                      >
+                        {n.ctaLink}
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </div>

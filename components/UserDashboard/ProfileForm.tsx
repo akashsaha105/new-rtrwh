@@ -479,9 +479,8 @@ HANDLE FORM SUBMIT
           {/* Profile Picture */}
           <div className="w-28 h-28 rounded-xl overflow-hidden border border-slate-700">
             <img
-              src={`https://api.dicebear.com/7.x/identicon/svg?seed=${
-                formData.username || "user"
-              }`}
+              src={`https://api.dicebear.com/7.x/identicon/svg?seed=${formData.username || "user"
+                }`}
               className="w-full h-full object-cover"
             />
           </div>

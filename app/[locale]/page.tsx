@@ -3,6 +3,7 @@ import Navbar from '@/components/Navbar'
 import Hero from '@/components/Hero'
 import Features from '@/components/Feature'
 import How from '@/components/How'
+import About from '@/components/About'
 import Why from '@/components/Why'
 import Testimonials from '@/components/Testimonial'
 import Footer from '@/components/Footer'
@@ -50,6 +51,10 @@ export default function Page({ params }: { params: { lang: string } }) {
 
       {/* Testimonials Section */}
       <Testimonials />
+
+      {/* about */}
+
+      <About />
 
       {/* Footer */}
       <Footer />

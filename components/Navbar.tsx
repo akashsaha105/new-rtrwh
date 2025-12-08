@@ -47,12 +47,13 @@ const Navbar = ({ t, lang = "en" }: NavbarProps) => {
     { name: t?.nav?.features || "Features", href: "#features" },
     { name: t?.nav?.how || "How It Works", href: "#how" },
     { name: t?.nav?.why || "Why Harvest?", href: "#why" },
+    { name: t?.nav?.contact || "About", href: "#about" },
     { name: t?.nav?.contact || "Contact", href: "#footer" },
   ];
 
   const [language, setLanguage] = useState("EN"); // default English
 
-  // ✅ Load language from localStorage on first render
+  //  Load language from localStorage on first render
   useEffect(() => {
     const storedLang = localStorage.getItem("app_language");
     if (storedLang) {

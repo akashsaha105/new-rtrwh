@@ -2,6 +2,12 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import { Camera, CloudRain, Calculator, Users, ArrowRight, CheckCircle } from 'lucide-react'
+import Link from 'next/link';
+import {
+  Droplets,
+  Zap,
+} from "lucide-react";
+
 
 const steps = [
   {
@@ -58,7 +64,7 @@ const steps = [
   }
 ]
 
-export default function How({}) {
+export default function How({lang}) {
   return (
     <section id="how" className="py-20 relative">
       {/* Background Elements */}
@@ -179,9 +185,13 @@ export default function How({}) {
               <h3 className="text-2xl font-bold text-white mb-2">Ready to Get Started?</h3>
               <p className="text-gray-300">Join thousands of users who have already assessed their rainwater harvesting potential.</p>
             </div>
-            <button onClick={()=>window.location.href='Signup'} className="px-8 py-4 bg-gradient-to-r from-[#0077b6] to-[#00b4d8] text-white rounded-xl shadow-glow hover:scale-105 transform transition font-semibold text-lg">
-              Start Your Assessment
-            </button>
+            <Link
+              className="px-8 py-4 bg-gradient-to-r from-[#0077b6] to-[#00b4d8] text-white rounded-xl shadow-glow hover:scale-105 transform transition font-semibold text-lg flex items-center justify-center space-x-2 cursor-pointer"
+              href={`${lang || 'en'}/assessment`}
+            >
+              <Zap className="w-5 h-5" />
+              <span>Try Free Assessment</span>
+            </Link>
           </div>
         </motion.div>
       </div>

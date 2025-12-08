@@ -12,7 +12,6 @@ export default function Footer({ lang }: { lang?: string }) {
     { name: "Features", href: "#features" },
     { name: "How It Works", href: "#how" },
     { name: "Why Harvest?", href: "#why" },
-    { name: "Contact", href: "Signup" },
     { name: "FAQs", href: "https://www.indiawaterportal.org/faqs/frequently-asked-questions-faqs-rainwater-harvesting-rwh" }
   ]
 

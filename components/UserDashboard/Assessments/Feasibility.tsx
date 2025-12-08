@@ -57,6 +57,7 @@ interface Props {
 export default function Feasibility(props: Props) {
   const [loading, setLoading] = useState(false);
   const [liveReport, setLiveReport] = useState<Props["report"] | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
 
   // Optional: auto-fetch latest report for current user in case parent didn't pass it
   React.useEffect(() => {
@@ -220,10 +221,10 @@ export default function Feasibility(props: Props) {
         <div className="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(circle_at_top_right,_#22d3ee10,_transparent_60%),radial-gradient(circle_at_bottom_left,_#4ade8010,_transparent_60%)]" />
 
         <div className="relative p-6 md:p-8">
-          {/* Header Section: Verdict & Score */}
-          <div className="flex flex-col md:flex-row gap-8 items-start md:items-center justify-between mb-8">
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
+          {/* Main Verdict Section - Simplified for General Users */}
+          <div className="flex flex-col gap-6 items-start justify-between mb-8">
+            <div className="flex-1 w-full">
+              <div className="flex items-center gap-3 mb-4">
                 <span
                   className={`inline-flex h-3 w-3 rounded-full shadow-[0_0_10px_currentColor]
                     ${props.assessmentStatus === "processing"
@@ -240,30 +241,41 @@ export default function Feasibility(props: Props) {
                     }`}
                 />
                 <span className="text-sm font-medium text-slate-400 uppercase tracking-wider">
-                  Assessment Status
+                  Feasibility Verdict
                 </span>
               </div>
 
-              <h2 className="text-3xl md:text-4xl font-bold text-slate-100 mb-3">
+              {/* Huge Friendly Title */}
+              <h2 className="text-3xl md:text-5xl font-bold text-slate-100 mb-6 leading-tight">
                 {props.assessmentStatus === "processing"
-                  ? "Analyzing Location..."
+                  ? "Analyzing your area..."
                   : props.assessmentStatus === "error"
                     ? "Analysis Failed"
                     : props.assessmentStatus === "none"
-                      ? "Ready to Analyze"
+                      ? "Is your area ready for rain?"
                       : report?.category === "High"
-                        ? "Highly Feasible"
+                        ? "Excellent Potential! 🌟"
                         : report?.category === "Moderate"
-                          ? "Moderately Feasible"
-                          : "Challenging Location"}
+                          ? "Good Potential "
+                          : "Challenging Location ⚠️"}
               </h2>
 
-              <p className="text-slate-300 text-lg leading-relaxed max-w-2xl">
-                {report?.explanation ??
-                  props.feasibility.reason ??
-                  (props.assessmentStatus === "none"
-                    ? "We need to analyze your location's rainfall, soil, and space to determine feasibility."
-                    : "")}
+
+              {/* Simple plain-english explanation */}
+              <p className="text-slate-300 text-lg md:text-xl leading-relaxed max-w-3xl mb-6">
+                {props.assessmentStatus === "none" ? (
+                  "We need to check your roof size and rainfall patterns. Click the button below to find out if rainwater harvesting will work for you."
+                ) : report ? (
+                  report.category === "High" ? (
+                    "Your location captures plenty of rain, and your roof size is perfect for harvesting. You can save a significant amount of water."
+                  ) : report.category === "Moderate" ? (
+                    "Your location is decent for harvesting. While you might not cover all your needs, you can still save water for specific uses like gardening or cleaning."
+                  ) : (
+                    "Rainfall or roof space is limited in your area. Harvesting is possible but might only provide a small supplement to your water needs."
+                  )
+                ) : (
+                  "..."
+                )}
               </p>
 
               {/* Error Messages */}
@@ -274,180 +286,15 @@ export default function Feasibility(props: Props) {
                 </div>
               )}
             </div>
-
-            {/* Circular Score Gauge (Only show if report exists) */}
-            {report && (
-              <div className="relative flex-shrink-0">
-                <div className="relative h-32 w-32 md:h-40 md:w-40 flex items-center justify-center">
-                  {/* SVG Gauge */}
-                  <svg className="h-full w-full -rotate-90" viewBox="0 0 100 100">
-                    {/* Background Circle */}
-                    <circle
-                      className="text-slate-800"
-                      strokeWidth="8"
-                      stroke="currentColor"
-                      fill="transparent"
-                      r="42"
-                      cx="50"
-                      cy="50"
-                    />
-                    {/* Progress Circle */}
-                    <circle
-                      className={`${getScoreColor(report.feasibilityScore)} transition-all duration-1000 ease-out`}
-                      strokeWidth="8"
-                      strokeDasharray={264}
-                      strokeDashoffset={264 - (264 * report.feasibilityScore) / 100}
-                      strokeLinecap="round"
-                      stroke="currentColor"
-                      fill="transparent"
-                      r="42"
-                      cx="50"
-                      cy="50"
-                    />
-                  </svg>
-                  {/* Center Text */}
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-3xl md:text-4xl font-bold text-slate-100">
-                      {report.feasibilityScore}
-                    </span>
-                    <span className="text-xs text-slate-400 uppercase font-medium">
-                      / 100
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
 
-          {/* Detailed Breakdown Section */}
-          {report?.breakdown && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-slate-800/60 pt-8">
-              {/* Left Column: Key Metrics */}
-              <div className="space-y-6">
-                <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">
-                  Key Factors
-                </h4>
-
-                {/* Roof Potential */}
-                <div>
-                  <div className="flex justify-between mb-2">
-                    <span className="text-slate-200 font-medium">Roof Potential</span>
-                    <span className={`text-sm font-bold ${getScoreColor(report.breakdown.roofScore)}`}>
-                      {report.breakdown.roofScore >= 70 ? "Excellent" : report.breakdown.roofScore >= 40 ? "Average" : "Limited"}
-                    </span>
-                  </div>
-                  <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full ${getProgressColor(report.breakdown.roofScore)} rounded-full`}
-                      style={{ width: `${report.breakdown.roofScore}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Based on your {report.breakdown.roofScore >= 70 ? "large" : "available"} roof area.
-                  </p>
-                </div>
-
-                {/* Rainfall Availability */}
-                <div>
-                  <div className="flex justify-between mb-2">
-                    <span className="text-slate-200 font-medium">Rainfall Availability</span>
-                    <span className={`text-sm font-bold ${getScoreColor(report.breakdown.rainfallScore)}`}>
-                      {report.avgRainfall_mm?.toLocaleString()} mm/yr
-                    </span>
-                  </div>
-                  <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full ${getProgressColor(report.breakdown.rainfallScore)} rounded-full`}
-                      style={{ width: `${report.breakdown.rainfallScore}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Annual rainfall in your location.
-                  </p>
-                </div>
-
-                {/* Soil Absorption */}
-                <div>
-                  <div className="flex justify-between mb-2">
-                    <span className="text-slate-200 font-medium">Soil Absorption</span>
-                    <span className={`text-sm font-bold ${getScoreColor(report.breakdown.soilScore)}`}>
-                      {report.breakdown.soilScore >= 60 ? "Good" : report.breakdown.soilScore >= 30 ? "Moderate" : "Poor"}
-                    </span>
-                  </div>
-                  <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full ${getProgressColor(report.breakdown.soilScore)} rounded-full`}
-                      style={{ width: `${report.breakdown.soilScore}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Ability of soil to soak up water.
-                  </p>
-                </div>
-              </div>
-
-              {/* Right Column: Actionable Insights */}
-              <div className="bg-slate-800/40 rounded-2xl p-5 border border-slate-700/30">
-                <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">
-                  What this means for you
-                </h4>
-
-                <ul className="space-y-4">
-                  <li className="flex gap-3">
-                    <div className="mt-1 h-5 w-5 flex-shrink-0 rounded-full bg-sky-500/20 text-sky-400 flex items-center justify-center text-xs font-bold">
-                      1
-                    </div>
-                    <div>
-                      <p className="text-slate-200 text-sm font-medium">
-                        Potential Capture
-                      </p>
-                      <p className="text-slate-400 text-xs mt-0.5">
-                        You can harvest approximately <span className="text-sky-300 font-bold">{report?.litres_per_year?.toLocaleString()} liters</span> of water annually.
-                      </p>
-                    </div>
-                  </li>
-
-                  <li className="flex gap-3">
-                    <div className="mt-1 h-5 w-5 flex-shrink-0 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-bold">
-                      2
-                    </div>
-                    <div>
-                      <p className="text-slate-200 text-sm font-medium">
-                        Recommendation
-                      </p>
-                      <p className="text-slate-400 text-xs mt-0.5">
-                        {report?.recommendedStructures?.[0]?.type
-                          ? `We recommend a ${report.recommendedStructures[0].type}.`
-                          : "Generate a report to see recommendations."}
-                      </p>
-                    </div>
-                  </li>
-
-                  <li className="flex gap-3">
-                    <div className="mt-1 h-5 w-5 flex-shrink-0 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-xs font-bold">
-                      3
-                    </div>
-                    <div>
-                      <p className="text-slate-200 text-sm font-medium">
-                        Impact
-                      </p>
-                      <p className="text-slate-400 text-xs mt-0.5">
-                        {report?.environmentalImpact?.descriptionBullets?.[0] ?? "Reduces groundwater dependency."}
-                      </p>
-                    </div>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          )}
-
           {/* Action Buttons */}
-          <div className="mt-8 flex flex-wrap gap-4">
+          <div className="flex flex-wrap gap-4 items-center">
             <button
               onClick={generate}
               disabled={loading || props.assessmentStatus === "processing"}
               className={`
-                flex-1 md:flex-none inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold
+                flex-1 md:flex-none inline-flex items-center justify-center gap-2 rounded-xl px-8 py-4 text-base font-bold
                 bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-lg shadow-sky-900/20
                 transition-all duration-200
                 hover:from-sky-400 hover:to-blue-500 hover:shadow-sky-900/40 hover:-translate-y-0.5
@@ -456,7 +303,7 @@ export default function Feasibility(props: Props) {
             >
               {loading || props.assessmentStatus === "processing" ? (
                 <>
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
@@ -464,21 +311,124 @@ export default function Feasibility(props: Props) {
                 </>
               ) : (
                 <>
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
-                  Generate New Report
+                  {report ? "Re-Analyze Area" : "Check My Feasibility"}
                 </>
               )}
             </button>
 
-            {/* <button
-              onClick={() => window.location.reload()}
-              className="px-6 py-3 rounded-xl border border-slate-700 bg-slate-800/50 text-slate-300 text-sm font-medium hover:bg-slate-800 hover:text-white transition-colors"
-            >
-              Refresh Data
-            </button> */}
+            {report && (
+              <button
+                onClick={() => setShowDetails(!showDetails)}
+                className="px-6 py-4 rounded-xl border border-slate-700 bg-slate-800/50 text-slate-300 text-base font-medium hover:bg-slate-800 hover:text-white transition-colors flex items-center gap-2"
+              >
+                {showDetails ? "Hide Technical Details" : "Show Technical Details"}
+                <svg
+                  className={`w-4 h-4 transition-transform duration-300 ${showDetails ? "rotate-180" : ""}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            )}
           </div>
+
+          {/* Technical Details Section (Collapsible) */}
+          {showDetails && report && (
+            <div className="mt-10 pt-10 border-t border-slate-800/60 animate-in fade-in slide-in-from-top-4 duration-500">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+
+                {/* Visual Gauge */}
+                <div className="flex flex-col items-center justify-center p-6 bg-slate-800/30 rounded-3xl border border-white/5">
+                  <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-6">
+                    Technical Score
+                  </h4>
+                  <div className="relative h-40 w-40 flex items-center justify-center">
+                    <svg className="h-full w-full -rotate-90" viewBox="0 0 100 100">
+                      <circle className="text-slate-800" strokeWidth="8" stroke="currentColor" fill="transparent" r="42" cx="50" cy="50" />
+                      <circle
+                        className={`${getScoreColor(report.feasibilityScore)} transition-all duration-1000 ease-out`}
+                        strokeWidth="8"
+                        strokeDasharray={264}
+                        strokeDashoffset={264 - (264 * report.feasibilityScore) / 100}
+                        strokeLinecap="round"
+                        stroke="currentColor"
+                        fill="transparent"
+                        r="42"
+                        cx="50"
+                        cy="50"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-4xl font-bold text-slate-100">{report.feasibilityScore}</span>
+                      <span className="text-xs text-slate-400 uppercase font-medium">/ 100</span>
+                    </div>
+                  </div>
+                  <p className="text-center text-sm text-slate-400 mt-4 max-w-xs">
+                    This score combines rainfall data, roof area, and soil properties into a single metric.
+                  </p>
+                </div>
+
+                {/* Score Breakdown */}
+                {report.breakdown && (
+                  <div className="space-y-6">
+                    <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">
+                      Why did I get this score?
+                    </h4>
+
+                    {/* Roof Potential */}
+                    <div>
+                      <div className="flex justify-between mb-2">
+                        <span className="text-slate-200 font-medium">Roof Area</span>
+                        <span className={`text-sm font-bold ${getScoreColor(report.breakdown.roofScore)}`}>
+                          {report.breakdown.roofScore / 20}/5
+                        </span>
+                      </div>
+                      <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                        <div className={`h-full ${getProgressColor(report.breakdown.roofScore)} rounded-full`} style={{ width: `${report.breakdown.roofScore}%` }} />
+                      </div>
+                    </div>
+
+                    {/* Rainfall */}
+                    <div>
+                      <div className="flex justify-between mb-2">
+                        <span className="text-slate-200 font-medium">Rainfall</span>
+                        <span className={`text-sm font-bold ${getScoreColor(report.breakdown.rainfallScore)}`}>
+                          {report.avgRainfall_mm?.toLocaleString()} mm/yr
+                        </span>
+                      </div>
+                      <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                        <div className={`h-full ${getProgressColor(report.breakdown.rainfallScore)} rounded-full`} style={{ width: `${report.breakdown.rainfallScore}%` }} />
+                      </div>
+                    </div>
+
+                    {/* Soil */}
+                    <div>
+                      <div className="flex justify-between mb-2">
+                        <span className="text-slate-200 font-medium">Soil Quality</span>
+                        <span className={`text-sm font-bold ${getScoreColor(report.breakdown.soilScore)}`}>
+                          {report.breakdown.soilScore >= 60 ? "Good" : "Average"}
+                        </span>
+                      </div>
+                      <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                        <div className={`h-full ${getProgressColor(report.breakdown.soilScore)} rounded-full`} style={{ width: `${report.breakdown.soilScore}%` }} />
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-800/40 rounded-xl p-4 mt-4 border border-slate-700/50">
+                      <p className="text-sm text-slate-300 italic">
+                        "{report.explanation}"
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

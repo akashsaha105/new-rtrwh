@@ -542,7 +542,10 @@ const Assessment = ({ rainfall }: { rainfall: number }) => {
         {/* Sections */}
         {mode === "jal" && (
           <>
-            <GroundRechargeStruct />
+            <GroundRechargeStruct
+              recommendedStructures={report?.recommendedStructures}
+              recommendedDimensions={report?.recommendedDimensions}
+            />
             <RecommendedStorageTank
               feasibility={
                 report
@@ -552,6 +555,7 @@ const Assessment = ({ rainfall }: { rainfall: number }) => {
                   }
                   : undefined
               }
+              recommendedStructures={report?.recommendedStructures}
             />
           </>
         )}

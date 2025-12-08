@@ -212,7 +212,7 @@ export default function Usage(props: Props) {
                 }
               }}
               contentStyle={{
-                backgroundColor: "#0f172a",
+                backgroundColor: "#b2cfa2ff",
                 border: "1px solid #1f2937",
                 borderRadius: "0.5rem",
                 color: "#e5e7eb",

@@ -1,26 +1,25 @@
 import { useTranslations } from "next-intl";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 type FeasibilitySummary = {
   category: "High" | "Moderate" | "Low";
   score: number;
 };
 
+interface RecommendedStructure {
+  type: string;
+  reason?: string;
+  confidence?: number;
+}
+
 export default function RecommendedStorageTank(
-  props: { feasibility?: FeasibilitySummary } = {}
+  props: {
+    feasibility?: FeasibilitySummary;
+    recommendedStructures?: RecommendedStructure[];
+  } = {}
 ) {
   const t = useTranslations("assessment");
-  const [selectedTank, setSelectedTank] = useState<null | {
-    type: string;
-    dimension: string;
-    capacity: string;
-    utilization: number;
-    image: string;
-    description: string;
-    benefits: string[];
-    costRange: string;
-  }>(null);
-  
+
   const tanks = [
     {
       type: "Underground Tank",
@@ -54,7 +53,70 @@ export default function RecommendedStorageTank(
       ],
       costRange: "₹ 80,000 – ₹ 2,00,000 (structure & size dependent)",
     },
+    {
+      type: "Rain Barrel / Drum",
+      dimension: "Ø 0.6m x 1m",
+      capacity: "200 - 500 L",
+      utilization: 90,
+      image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRz-XvKz-XvKz-XvKz-XvKz-XvKz-XvKz-XvKz&s", // Placeholder
+      description: "Simple plastic or metal drums connected to the downspout for small-scale garden watering and cleaning.",
+      benefits: [
+        "Very low cost and easy DIY installation",
+        "Perfect for small gardens and balconies",
+        "Modular: can connect multiple barrels"
+      ],
+      costRange: "₹ 2,000 – ₹ 5,000 per barrel"
+    },
+    {
+      type: "Ferro-cement Tank",
+      dimension: "Variable (Cylindrical)",
+      capacity: "10,000 - 50,000 L",
+      utilization: 80,
+      image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRz-XvKz-XvKz-XvKz-XvKz-XvKz-XvKz-XvKz&s", // Placeholder
+      description: "A tank made of wire mesh and cement mortar, which is cheaper and lighter than RCC tanks.",
+      benefits: [
+        "Cost-effective compared to RCC",
+        "Durable and crack-resistant",
+        "Can be built above or partially below ground"
+      ],
+      costRange: "₹ 5 – ₹ 8 per litre"
+    }
   ];
+
+  const [displayTanks, setDisplayTanks] = useState(tanks);
+
+  useEffect(() => {
+    if (props.recommendedStructures && props.recommendedStructures.length > 0) {
+      const dynamicTanks = tanks.map((tank) => {
+        const match = props.recommendedStructures?.find(r =>
+          r.type.toLowerCase().includes(tank.type.toLowerCase()) ||
+          tank.type.toLowerCase().includes(r.type.toLowerCase())
+        );
+
+        if (match) {
+          return {
+            ...tank,
+            reason: match.reason,
+            confidence: match.confidence
+          };
+        }
+        return tank;
+      });
+      setDisplayTanks(dynamicTanks);
+    }
+  }, [props.recommendedStructures]);
+
+  const [selectedTank, setSelectedTank] = useState<null | {
+    type: string;
+    dimension: string;
+    capacity: string;
+    utilization: number;
+    image: string;
+    description: string;
+    benefits: string[];
+    costRange: string;
+    reason?: string;
+  }>(null);
 
   return (
     <div className="mb-12">
@@ -72,8 +134,8 @@ export default function RecommendedStorageTank(
               props.feasibility.category === "High"
                 ? "px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/50 text-xs"
                 : props.feasibility.category === "Moderate"
-                ? "px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/50 text-xs"
-                : "px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-300 border border-rose-500/50 text-xs"
+                  ? "px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/50 text-xs"
+                  : "px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-300 border border-rose-500/50 text-xs"
             }
           >
             {props.feasibility.category} ({props.feasibility.score}/100)
@@ -82,15 +144,29 @@ export default function RecommendedStorageTank(
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {tanks.map((tank, idx) => (
+        {displayTanks.map((tank, idx) => (
           <div
             key={idx}
-            className="relative bg-slate-900/80 backdrop-blur-lg border-indigo-700 p-6 rounded-2xl border shadow-lg hover:shadow-xl transition"
+            className="relative bg-slate-900/80 backdrop-blur-lg border-indigo-700 p-6 rounded-2xl border shadow-lg hover:shadow-xl transition flex flex-col"
           >
+            {/* Recommended Badge */}
+            {(tank as any).reason && (
+              <div className="absolute -top-3 -right-3 bg-indigo-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg z-10">
+                Recommended
+              </div>
+            )}
+
             <h5 className="text-xl font-bold text-indigo-300 mb-3">
               {tank.type}
             </h5>
-            <ul className="space-y-2 text-sm text-slate-200">
+
+            {(tank as any).reason && (
+              <p className="text-sm text-indigo-200/80 mb-3 italic">
+                &quot;{(tank as any).reason}&quot;
+              </p>
+            )}
+
+            <ul className="space-y-2 text-sm text-slate-200 mb-4 flex-grow">
               <li>
                 <strong>{t("dimension")}:</strong> {tank.dimension}
               </li>
@@ -99,7 +175,7 @@ export default function RecommendedStorageTank(
               </li>
             </ul>
             <button
-              className="mt-4 px-4 py-2 bg-gradient-to-r from-indigo-600 to-teal-600 hover:from-indigo-500 hover:to-teal-500 text-white rounded-lg text-sm cursor-pointer shadow"
+              className="mt-auto px-4 py-2 bg-gradient-to-r from-indigo-600 to-teal-600 hover:from-indigo-500 hover:to-teal-500 text-white rounded-lg text-sm cursor-pointer shadow w-full"
               onClick={() => setSelectedTank(tank)}
             >
               {t("learnMore")}
@@ -138,6 +214,12 @@ export default function RecommendedStorageTank(
                 <div>
                   <p className="text-slate-300 mb-1 font-semibold">Overview</p>
                   <p className="text-slate-300">{selectedTank.description}</p>
+                  {selectedTank.reason && (
+                    <div className="mt-3 p-3 bg-indigo-900/30 border border-indigo-800 rounded-lg">
+                      <p className="text-indigo-200 font-medium mb-1">Why this is recommended:</p>
+                      <p className="text-indigo-100/80 italic">{selectedTank.reason}</p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

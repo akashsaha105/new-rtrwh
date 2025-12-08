@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { MessageCircle, UserCircle2, Send, ArrowDown, X, Image as ImageIcon, Mic, Heart, StopCircle, Trash2 } from "lucide-react";
+import { MessageCircle, UserCircle2, Send, ArrowDown, X, Image as ImageIcon, Mic, Heart, StopCircle, Trash2, Play, Pause } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { auth, firestore, storage } from "@/firebase";
 import {
@@ -62,6 +62,9 @@ const Community = () => {
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioPreview, setAudioPreview] = useState<string | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
+
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -248,6 +251,17 @@ const Community = () => {
     }
     setAudioBlob(null);
     setAudioPreview(null);
+    setIsPlaying(false);
+  };
+
+  const togglePlayback = () => {
+    if (!audioPreviewRef.current) return;
+    if (isPlaying) {
+      audioPreviewRef.current.pause();
+    } else {
+      audioPreviewRef.current.play();
+    }
+    setIsPlaying(!isPlaying);
   };
 
   const handleSend = async () => {
@@ -300,6 +314,7 @@ const Community = () => {
     setAudioBlob(null);
     setAudioPreview(null);
     setIsRecording(false);
+    setIsPlaying(false);
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -390,9 +405,9 @@ const Community = () => {
           </div>
           <div className="flex flex-col">
             <span className="font-medium text-gray-100 text-base">Community Lounge</span>
-            <span className="text-xs text-gray-400">
+            {/* <span className="text-xs text-gray-400">
               {onlineUsers.length} member{onlineUsers.length === 1 ? "" : "s"} online
-            </span>
+            </span> */}
           </div>
         </div>
 
@@ -545,83 +560,109 @@ const Community = () => {
         )}
 
         {/* Input Area */}
-        <div className="bg-[#202c33] px-4 py-2 flex items-end gap-2 border-t border-[#2f3b43] z-20">
+        <div className="bg-[#202c33] flex flex-col z-20 border-t border-[#2f3b43]">
 
-          {/* Reply Preview */}
-          {replyTo && (
-            <div className="absolute bottom-full left-0 right-0 bg-[#1f2c34] border-t border-[#2f3b43] p-2 flex items-center justify-between z-10 animate-in slide-in-from-bottom-2">
-              <div className="flex items-center gap-3 overflow-hidden">
-                <div className="h-10 w-1 bg-[#00a884] rounded-full"></div>
-                <div className="flex flex-col">
+          {/* Previews Section */}
+          <div className="px-4 space-y-2 empty:hidden pt-2">
+
+            {/* Reply Preview */}
+            {replyTo && (
+              <div className="bg-[#1f2c34] border-l-4 border-[#00a884] p-2 rounded-r-lg flex items-center justify-between animate-in slide-in-from-bottom-2">
+                <div className="flex flex-col overflow-hidden">
                   <span className="text-[#00a884] text-xs font-bold">Replying to {replyTo.senderName}</span>
-                  <span className="text-gray-400 text-xs truncate max-w-[200px]">{replyTo.text || "Media"}</span>
+                  <span className="text-gray-400 text-xs truncate max-w-[200px]">{replyTo.text || "Media Content"}</span>
                 </div>
-              </div>
-              <button onClick={() => setReplyTo(null)} className="p-1 hover:bg-white/5 rounded-full">
-                <X className="h-5 w-5 text-gray-400" />
-              </button>
-            </div>
-          )}
-
-          {/* Image Preview */}
-          {imagePreview && (
-            <div className="absolute bottom-full left-4 mb-2">
-              <div className="relative">
-                <img src={imagePreview} className="h-20 w-20 object-cover rounded-lg border border-[#2f3b43]" alt="preview" />
-                <button
-                  onClick={() => { setImageFile(null); setImagePreview(null); }}
-                  className="absolute -top-2 -right-2 bg-[#202c33] rounded-full p-1 border border-[#2f3b43] shadow-sm"
-                >
-                  <X className="h-3 w-3 text-gray-400" />
+                <button onClick={() => setReplyTo(null)} className="p-1 hover:bg-white/5 rounded-full text-gray-400">
+                  <X className="h-4 w-4" />
                 </button>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Attachment Button */}
-          <label className="p-2 text-[#8696a0] hover:text-gray-300 cursor-pointer transition-colors pb-3">
-            <ImageIcon className="h-6 w-6" />
-            <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
-          </label>
-
-          <div className="flex-1 bg-[#2a3942] rounded-lg flex items-center min-h-[42px] px-3 py-1.5 my-1">
-            {isRecording ? (
-              <div className="flex items-center gap-3 w-full animate-in fade-in">
-                <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-                <span className="text-red-400 text-sm font-mono flex-1">
-                  {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, "0")}
-                </span>
-                <button onClick={cancelRecording} className="text-[#8696a0] hover:text-red-400"><Trash2 className="h-5 w-5" /></button>
-                <button onClick={stopRecording} className="text-[#00a884] hover:text-[#00c298]"><Send className="h-5 w-5" /></button>
+            {/* Image Preview - Large Card */}
+            {imagePreview && (
+              <div className="relative rounded-xl overflow-hidden bg-[#2a3942] border border-[#2f3b43] animate-in slide-in-from-bottom-2 group w-full max-w-sm mx-auto md:mx-0">
+                <img src={imagePreview} className="max-h-64 w-full object-contain bg-black/50" alt="preview" />
+                <button
+                  onClick={() => { setImageFile(null); setImagePreview(null); }}
+                  className="absolute top-2 right-2 bg-black/60 hover:bg-red-500 text-white p-1.5 rounded-full backdrop-blur-sm transition-all shadow-lg opacity-0 group-hover:opacity-100"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
-            ) : (
-              <input
-                type="text"
-                value={messageQuery}
-                onChange={(e) => setMessageQuery(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                placeholder="Type a message"
-                className="w-full bg-transparent border-none outline-none text-gray-100 placeholder-[#8696a0] text-[15px]"
-              />
+            )}
+
+            {/* Audio Draft Preview */}
+            {!isRecording && audioBlob && (
+              <div className="flex items-center gap-3 bg-[#2a3942] p-3 rounded-xl border border-[#2f3b43] animate-in slide-in-from-bottom-2 max-w-md">
+                <button onClick={togglePlayback} className="h-10 w-10 shrink-0 flex items-center justify-center rounded-full bg-[#00a884] text-white hover:bg-[#008f6f] transition-colors shadow-sm">
+                  {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-1" />}
+                </button>
+                <div className="flex-1 flex flex-col">
+                  <span className="text-sm font-medium text-gray-200">Voice Message Draft</span>
+                  <span className="text-xs text-[#8696a0]">Ready to send</span>
+                </div>
+                <audio
+                  ref={audioPreviewRef}
+                  src={audioPreview!}
+                  onEnded={() => setIsPlaying(false)}
+                  className="hidden"
+                />
+                <button
+                  onClick={cancelRecording}
+                  className="p-2 text-red-500 hover:bg-red-500/10 rounded-full transition-colors"
+                  title="Delete Draft"
+                >
+                  <Trash2 className="h-5 w-5" />
+                </button>
+              </div>
             )}
           </div>
 
-          {/* Mic or Send Button */}
-          {!isRecording && (
+          {/* Input Controls */}
+          <div className="px-4 py-2 flex items-end gap-2">
+            <label className="p-3 text-[#8696a0] hover:text-gray-300 cursor-pointer transition-colors hover:bg-white/5 rounded-full transform hover:scale-110 active:scale-95 duration-200">
+              <ImageIcon className="h-6 w-6" />
+              <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+            </label>
+
+            <div className="flex-1 bg-[#2a3942] rounded-2xl flex items-center min-h-[44px] px-4 my-1 border border-transparent focus-within:border-[#2f3b43] transition-colors">
+              {isRecording ? (
+                <div className="flex items-center gap-3 w-full animate-in fade-in duration-300">
+                  <div className="h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
+                  <span className="text-red-400 text-sm font-mono flex-1 font-medium tracking-wide">
+                    {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, "0")}
+                  </span>
+                  <button onClick={cancelRecording} className="text-[#8696a0] hover:text-red-400 p-1 hover:bg-white/5 rounded-full transition-colors" title="Cancel">
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  value={messageQuery}
+                  onChange={(e) => setMessageQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                  placeholder={imagePreview ? "Add a caption..." : (audioBlob ? "Add a note..." : "Type a message")}
+                  className="w-full bg-transparent border-none outline-none text-gray-100 placeholder-[#8696a0] text-[15px] py-1"
+                />
+              )}
+            </div>
+
+            {/* Action Button */}
             <button
-              onClick={(!messageQuery.trim() && !imageFile && !audioBlob) ? startRecording : handleSend}
-              className={`p-3 rounded-full flex items-center justify-center transition-all ${(!messageQuery.trim() && !imageFile && !audioBlob)
-                ? "bg-[#2a3942] text-[#8696a0] hover:bg-[#374248]" // Mic style
-                : "bg-[#00a884] text-white hover:bg-[#008f6f]"     // Send style
+              onClick={isRecording ? stopRecording : ((!messageQuery.trim() && !imageFile && !audioBlob) ? startRecording : handleSend)}
+              className={`p-3 rounded-full flex items-center justify-center transition-all shadow-md transform hover:scale-105 active:scale-95 duration-200 ${(isRecording || messageQuery.trim() || imageFile || audioBlob)
+                  ? "bg-[#00a884] text-white hover:bg-[#008f6f]"
+                  : "bg-[#2a3942] text-[#8696a0] hover:bg-[#374248]"
                 }`}
             >
-              {(!messageQuery.trim() && !imageFile && !audioBlob) ? (
-                <Mic className="h-5 w-5" />
+              {isRecording ? (
+                <StopCircle className="h-5 w-5 animate-pulse" />
               ) : (
-                <Send className="h-5 w-5 pl-0.5" />
+                (!messageQuery.trim() && !imageFile && !audioBlob) ? <Mic className="h-5 w-5" /> : <Send className="h-5 w-5 pl-0.5" />
               )}
             </button>
-          )}
+          </div>
         </div>
       </div>
 
@@ -633,7 +674,7 @@ const Community = () => {
 
         <div className="p-4 overflow-y-auto">
           <div className="bg-[#111b21] rounded-lg mb-4">
-            <h5 className="text-[#00a884] text-sm mb-4 px-2">Participants: {onlineUsers.length}</h5>
+            <h5 className="text-[#00a884] text-sm mb-4 px-2">members: {onlineUsers.length}</h5>
             <div className="space-y-1">
               {onlineUsers.map((u) => (
                 <div key={u.uid} className="flex items-center gap-3 p-2 hover:bg-[#202c33] rounded-lg transition-colors cursor-pointer">
@@ -646,7 +687,7 @@ const Community = () => {
                   )}
                   <div className="flex flex-col">
                     <span className="text-[#e9edef] text-sm font-normal">{u.uid === user?.uid ? "You" : u.fullName}</span>
-                    <span className="text-[#8696a0] text-xs">online</span>
+
                   </div>
                 </div>
               ))}

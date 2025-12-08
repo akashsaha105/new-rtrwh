@@ -62,7 +62,7 @@ function parseDimensions(input: string) {
 }
 
 
-export default function RechargeStructure({props}: {props: Props | null}) {
+export default function RechargeStructure({ props }: { props: Props | null }) {
   const [open, setOpen] = useState(false);
 
   const dims = parseDimensions(props?.dimensions ? props.dimensions : "");
@@ -114,7 +114,7 @@ export default function RechargeStructure({props}: {props: Props | null}) {
             <p className="text-slate-300/90 leading-relaxed text-sm mb-5">
               {/* This recharge pit is optimized for efficient groundwater
               percolation and suited for household-level RWH systems. */}
-                    {props?.details}
+              {props?.details}
             </p>
 
             {/* Info Blocks */}

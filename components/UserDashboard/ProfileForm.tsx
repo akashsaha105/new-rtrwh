@@ -339,18 +339,37 @@ HANDLE FORM SUBMIT
       "
                   >
                     <option value="" className="text-white">
-                      Select State
+                    Select State
                     </option>
-                    <option value="West Bengal" className="text-white">
-                      West Bengal
-                    </option>
-                    <option value="Maharastra" className="text-white">
-                      Maharastra
-                    </option>
-                    <option value="Delhi" className="text-white">
-                      Delhi
-                    </option>
-                  </select>
+                    <option value="Andhra Pradesh" className="text-white">Andhra Pradesh</option>
+                    <option value="Arunachal Pradesh" className="text-white">Arunachal Pradesh</option>
+                    <option value="Assam" className="text-white">Assam</option>
+                    <option value="Bihar" className="text-white">Bihar</option>
+                    <option value="Chhattisgarh" className="text-white">Chhattisgarh</option>
+                    <option value="Goa" className="text-white">Goa</option>
+                    <option value="Gujarat" className="text-white">Gujarat</option>
+                    <option value="Haryana" className="text-white">Haryana</option>
+                    <option value="Himachal Pradesh" className="text-white">Himachal Pradesh</option>
+                    <option value="Jharkhand" className="text-white">Jharkhand</option>
+                    <option value="Karnataka" className="text-white">Karnataka</option>
+                    <option value="Kerala" className="text-white">Kerala</option>
+                    <option value="Madhya Pradesh" className="text-white">Madhya Pradesh</option>
+                    <option value="Maharashtra" className="text-white">Maharashtra</option>
+                    <option value="Manipur" className="text-white">Manipur</option>
+                    <option value="Meghalaya" className="text-white">Meghalaya</option>
+                    <option value="Mizoram" className="text-white">Mizoram</option>
+                    <option value="Nagaland" className="text-white">Nagaland</option>
+                    <option value="Odisha" className="text-white">Odisha</option>
+                    <option value="Punjab" className="text-white">Punjab</option>
+                    <option value="Rajasthan" className="text-white">Rajasthan</option>
+                    <option value="Sikkim" className="text-white">Sikkim</option>
+                    <option value="Tamil Nadu" className="text-white">Tamil Nadu</option>
+                    <option value="Telangana" className="text-white">Telangana</option>
+                    <option value="Tripura" className="text-white">Tripura</option>
+                    <option value="Uttar Pradesh" className="text-white">Uttar Pradesh</option>
+                    <option value="Uttarakhand" className="text-white">Uttarakhand</option>
+                    <option value="West Bengal" className="text-white">West Bengal</option>
+                          </select>
 
                   {/* Dropdown Arrow */}
                   <svg

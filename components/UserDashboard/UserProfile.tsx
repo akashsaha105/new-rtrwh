@@ -256,6 +256,32 @@ const UserProfile = () => {
     }
   }, []);
 
+  // Auto-save location to Firestore when available
+  useEffect(() => {
+    const saveLocation = async () => {
+      if (
+        user &&
+        latitude !== null &&
+        longitude !== null &&
+        (latitude !== 0 || longitude !== 0)
+      ) {
+        try {
+          const docRef = doc(firestore, "users", user.uid);
+          await setDoc(
+            docRef,
+            { geopoint: [latitude, longitude] },
+            { merge: true }
+          );
+          console.log("Location auto-saved to Firestore");
+        } catch (error) {
+          console.error("Error auto-saving location:", error);
+        }
+      }
+    };
+
+    saveLocation();
+  }, [user, latitude, longitude]);
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (!currentUser) {
@@ -334,24 +360,27 @@ const UserProfile = () => {
         setLongitude(longitude);
         try {
           const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
           );
           const data = await response.json();
           setFormData((prev) => ({
             ...prev,
             location: {
-              state: prev.location.state || data.address.state || "",
+              state: data.principalSubdivision || prev.location.state || "",
               city:
+                data.city ||
+                data.locality ||
                 prev.location.city ||
-                data.address.city ||
-                data.address.town ||
-                data.address.village ||
                 "",
-              address: prev.location.address || data.display_name || "",
+              address:
+                (data.locality && data.principalSubdivision)
+                  ? `${data.locality}, ${data.principalSubdivision}`
+                  : (data.displayName || prev.location.address || ""),
             },
           }));
         } catch (error) {
           console.error("Failed to fetch address:", error);
+          alert("Could not fetch address details. Please enter manually.");
         } finally {
           setLoadingLocation(false);
         }
@@ -359,7 +388,17 @@ const UserProfile = () => {
       (error) => {
         console.error("Geolocation error:", error);
         setLoadingLocation(false);
-      }
+        if (error.code === 1) {
+          alert("Location access denied. Please enable permissions.");
+        } else if (error.code === 2) {
+          alert("Position unavailable. Check your network or GPS.");
+        } else if (error.code === 3) {
+          alert("Location request timed out.");
+        } else {
+          alert("An unknown error occurred while detecting location.");
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   };
 

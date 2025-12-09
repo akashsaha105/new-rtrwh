@@ -3,7 +3,19 @@ from fastapi.middleware.cors import CORSMiddleware
 import requests
 import csv
 import math
+import logging
 from typing import List, Dict, Optional
+
+# ---------------- logging ----------------
+logger = logging.getLogger("new_rtrwh")
+logger.setLevel(logging.DEBUG)
+handler = logging.StreamHandler()
+handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
+handler.setFormatter(formatter)
+if not logger.handlers:
+    logger.addHandler(handler)
+# -----------------------------------------
 
 app = FastAPI(
     title="Groundwater Depth + RWH API",
@@ -12,10 +24,7 @@ app = FastAPI(
 )
 
 # ---------- CORS CONFIGURATION ----------
-# Adjust allowed_origins to restrict access in production.
-# For development or public APIs you can keep ["*"].
 allowed_origins = ["*"]
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
@@ -152,10 +161,6 @@ def gw_depth_india(
 
 
 def fetch_max_daily_rainfall(lat: float, lon: float, year: int = 2024) -> Dict[str, float]:
-    """
-    Get maximum daily total rainfall (mm/day) for the year.
-    This is used to compute rainfall depth for volume.
-    """
     params = {
         "latitude": lat,
         "longitude": lon,
@@ -180,6 +185,8 @@ def fetch_max_daily_rainfall(lat: float, lon: float, year: int = 2024) -> Dict[s
         data = resp.json()
     except ValueError:
         raise HTTPException(status_code=500, detail="Failed to parse JSON from Open-Meteo (daily)")
+
+    logger.debug("Open-Meteo daily response keys: %s", list(data.keys()))
 
     try:
         daily = data["daily"]
@@ -206,10 +213,6 @@ def fetch_max_daily_rainfall(lat: float, lon: float, year: int = 2024) -> Dict[s
 
 
 def fetch_max_hourly_rainfall(lat: float, lon: float, year: int = 2024) -> Dict[str, float]:
-    """
-    Get maximum hourly rainfall (mm/hour) for the year.
-    This is the i in Q = C I A (Rational method).
-    """
     params = {
         "latitude": lat,
         "longitude": lon,
@@ -235,6 +238,8 @@ def fetch_max_hourly_rainfall(lat: float, lon: float, year: int = 2024) -> Dict[
     except ValueError:
         raise HTTPException(status_code=500, detail="Failed to parse JSON from Open-Meteo (hourly)")
 
+    logger.debug("Open-Meteo hourly response keys: %s", list(data.keys()))
+
     try:
         hourly = data["hourly"]
         precip_list = hourly["precipitation"]
@@ -251,9 +256,11 @@ def fetch_max_hourly_rainfall(lat: float, lon: float, year: int = 2024) -> Dict[
     max_index = precip_list.index(max_hourly_mm)
     max_time = time_list[max_index]
 
+    # RETURN both key variants to be defensive / backwards-compatible
     return {
         "year": year,
         "max_hourly_precip_mm": float(max_hourly_mm),
+        "max_hourly_prec_mm": float(max_hourly_mm),  # legacy/alt key
         "max_hourly_precip_time": max_time,
         "note": "Max hourly rainfall intensity from Open-Meteo archive (mm/hour)",
     }
@@ -280,15 +287,6 @@ def get_runoff_coefficient(rooftop_type: str) -> float:
 
 
 def design_recharge_pit_dimensions(volume_m3: float) -> Optional[Dict[str, float]]:
-    """
-    Given recharge pit volume (m³), suggest rectangular pit dimensions.
-    Assumptions:
-      - L : B = 2 : 1
-      - Depth depends on volume:
-          volume <= 10 m³  -> D = 2.0 m
-          10 < volume <= 50 m³ -> D = 3.0 m
-          volume > 50 m³  -> D = 4.0 m
-    """
     if volume_m3 <= 0:
         return None
 
@@ -300,7 +298,6 @@ def design_recharge_pit_dimensions(volume_m3: float) -> Optional[Dict[str, float
         depth = 4.0
 
     area = volume_m3 / depth
-
     breadth = math.sqrt(area / 2.0)
     length = 2.0 * breadth
 
@@ -327,46 +324,43 @@ def rwh_design(
         description="Search radius for nearest CGWB station (km)",
     ),
 ):
-    """
-    Integrated API:
-
-    - Groundwater:
-        depth from nearest CGWB station (m bgl).
-    - Rainfall:
-        max_daily_precip_mm  -> rainfallDepth (for volume)
-        max_hourly_precip_mm -> intensity i (for CIA)
-    - Hydrology:
-        rainfallDepth_m = max_daily_precip_mm / 1000
-        runoffDepth_m   = C * rainfallDepth_m
-        Volume (m³)     = runoffDepth_m * A
-
-        i_mm_per_hr = max_hourly_precip_mm
-        i_m_per_hr  = i_mm_per_hr / 1000
-        Q_cia_m3_per_hr = C * i_m_per_hr * A      (Rational method)
-    - Design logic by depth:
-        0–3 m   : Storage only
-        >3–10 m : Recharge pit + storage
-        ≥10 m   : Recharge pit + storage + trench
-    - Feasibility:
-        depth > 3 m  -> "yes"
-        depth <= 3 m -> "no"
-    - Pit dimensions:
-        For cases with recharge pit, a rectangular pit L×B×D is suggested.
-    """
-
     gw_info = get_india_depth_for_point(lat=lat, lon=lon, max_radius_km=max_radius_km)
     depth_m = gw_info["depth_m_below_ground"]
 
     daily_rain = fetch_max_daily_rainfall(lat=lat, lon=lon, year=year)
     hourly_rain = fetch_max_hourly_rainfall(lat=lat, lon=lon, year=year)
 
-    max_daily_mm = daily_rain["max_daily_precip_mm"]
-    max_hourly_mm = hourly_rain["max_hourly_prec_mm"]
+    # Defensive extraction: support both key names and provide clear 502 if missing
+    max_daily_mm = (
+        daily_rain.get("max_daily_precip_mm")
+        or daily_rain.get("max_daily_prec_mm")
+        or daily_rain.get("max_daily_precip")  # possible variant
+    )
+    if max_daily_mm is None:
+        logger.error("Daily rainfall key missing; daily_rain=%s", daily_rain)
+        raise HTTPException(status_code=502, detail={"message": "daily rainfall missing expected key", "daily_rain_keys": list(daily_rain.keys())})
+
+    # hourly: support multiple key variants (we return two variants above)
+    max_hourly_mm = (
+        hourly_rain.get("max_hourly_precip_mm")
+        or hourly_rain.get("max_hourly_prec_mm")
+        or hourly_rain.get("max_hourly_precip")
+        or hourly_rain.get("max_hourly_prec")  # last-resort
+    )
+    if max_hourly_mm is None:
+        logger.error("Hourly rainfall key missing; hourly_rain=%s", hourly_rain)
+        raise HTTPException(status_code=502, detail={"message": "hourly rainfall missing expected key", "hourly_rain_keys": list(hourly_rain.keys())})
+
+    # convert to floats (fast-fail if not convertible)
+    try:
+        max_daily_mm = float(max_daily_mm)
+        max_hourly_mm = float(max_hourly_mm)
+    except (ValueError, TypeError) as e:
+        logger.exception("Failed converting rainfall values to float: %s", e)
+        raise HTTPException(status_code=502, detail="Invalid rainfall numeric format from upstream")
 
     rainfall_depth_m = max_daily_mm / 1000.0
-
     c_runoff = get_runoff_coefficient(rooftop_type)
-
     runoff_depth_m = c_runoff * rainfall_depth_m
     runoff_volume_m3 = runoff_depth_m * rooftop_area_m2
 

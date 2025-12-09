@@ -170,7 +170,7 @@ export default function Feasibility(props: Props) {
             lat: String(userData.geopoint[0] || 12.97),
             lon: String(userData.geopoint[1] || 77.59)
           });
-          const res = await fetch(`http://0.0.0.0:8001/rwh-design?${queryParams}`);
+          const res = await fetch(`http://localhost:8001/rwh-design?${queryParams}`);
           if (res.ok) {
             apiResult = await res.json();
             console.log("API Result: ", apiResult);

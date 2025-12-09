@@ -210,24 +210,28 @@ HANDLE FORM SUBMIT
 
         try {
           const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
           );
           const data = await res.json();
 
           setFormData((prev) => ({
             ...prev,
             location: {
-              state: data.address.state || "",
+              state: data.principalSubdivision || prev.location.state || "",
               city:
-                data.address.city ||
-                data.address.town ||
-                data.address.village ||
+                data.city ||
+                data.locality ||
+                prev.location.city ||
                 "",
-              address: data.display_name || "",
+              address:
+                (data.locality && data.principalSubdivision)
+                  ? `${data.locality}, ${data.principalSubdivision}`
+                  : (data.displayName || prev.location.address || ""),
             },
           }));
         } catch (err) {
           console.error("Address lookup failed:", err);
+          alert("Could not fetch address details. Please enter manually.");
         } finally {
           setLoadingLocation(false);
         }
@@ -236,7 +240,17 @@ HANDLE FORM SUBMIT
       (error) => {
         console.error("Geolocation error:", error);
         setLoadingLocation(false);
-      }
+        if (error.code === 1) {
+          alert("Location access denied. Please enable permissions.");
+        } else if (error.code === 2) {
+          alert("Position unavailable. Check your network or GPS.");
+        } else if (error.code === 3) {
+          alert("Location request timed out.");
+        } else {
+          alert("An unknown error occurred while detecting location.");
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   };
   return (

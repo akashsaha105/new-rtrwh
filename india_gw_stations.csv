@@ -1,0 +1,16 @@
+station_id,station_name,latitude,longitude,depth_m_bgl,date,state,district
+WB001,Kolkata Central Groundwater Well,22.57,88.36,6.1,2023-11-01,West Bengal,Kolkata
+WB002,Barrackpore Observation Well,22.75,88.36,7.8,2023-11-01,West Bengal,North 24 Parganas
+WB003,Howrah Groundwater Station,22.60,88.31,5.5,2023-11-01,West Bengal,Howrah
+WB004,Dumdum Groundwater Well,22.62,88.42,6.9,2023-11-01,West Bengal,North 24 Parganas
+WB005,Sonarpur Groundwater Well,22.43,88.42,5.2,2023-11-01,West Bengal,South 24 Parganas
+WB006,Hugli Riverside Shallow Well,22.5890,88.3500,2.4,2023-11-01,West Bengal,Kolkata
+TN001,Coimbatore Central Observation Well,10.9393,76.9591,7.2,2024-01-01,Tamil Nadu,Coimbatore
+TN002,Gandhipuram Groundwater Well,11.0130,76.9765,6.5,2024-01-01,Tamil Nadu,Coimbatore 
+TN003,Saravanampatti Monitoring Well,11.0615,76.9920,8.1,2024-01-01,Tamil Nadu,Coimbatore 
+TN004,Singanallur Groundwater Well,10.9992,77.0204,5.9,2024-01-01,Tamil Nadu,Coimbatore 
+TN005,Periyanaickenpalayam Observation Well,11.1400,76.9510,9.4,2024-01-01,Tamil Nadu,Coimbatore
+TN007,Gandhipuram Groundwater Well,11.0130,76.9765,6.5,2024-01-01,Tamil Nadu,Coimbatore
+TN008,Saravanampatti Monitoring Well,11.0615,76.9920,8.1,2024-01-01,Tamil Nadu,Coimbatore
+TN009,Singanallur Groundwater Well,10.9992,77.0204,5.9,2024-01-01,Tamil Nadu,Coimbatore
+TN010,Thadagam Shallow Aquifer Well,11.0450,76.9000,2.7,2024-01-01,Tamil Nadu,Coimbatore

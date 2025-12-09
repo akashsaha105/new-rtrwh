@@ -1,10 +1,14 @@
 import { useTranslations } from "next-intl";
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { auth, firestore } from "@/firebase";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 
 export default function GroundRechargeStruct() {
   const t = useTranslations("assessment");
+  const [result, setResult] = useState(null);
 
-  const structures = [
+  const allStructures = [
     {
       type: "Recharge Pit",
       dimension: "2m x 2m x 2.5m",
@@ -53,22 +57,89 @@ export default function GroundRechargeStruct() {
       ],
       priceRange: "₹ 1,00,000 – ₹ 2,50,000 (depending on depth)",
     },
+    {
+      type: "Storage Tank",
+      dimension: "2.5m x 2.5m x 1.5m",
+      capacity: "5,000 L",
+      suitability: "All soil types",
+      image:
+        "https://5.imimg.com/data5/SELLER/Default/2024/2/385312739/OW/QZ/XM/26601267/sintex-water-tank.jpg",
+      description:
+        "A storage tank is a container used to store collected rainwater for later use. It can be placed above or below ground.",
+      benefits: [
+        "Stores water for immediate use",
+        "Reduces reliance on municipal water",
+        "Can be integrated with filtration systems",
+      ],
+      priceRange: "₹ 20,000 – ₹ 50,000 (capacity dependent)",
+    },
   ];
-  const [selectedStructure, setSelectedStructure] = React.useState<null | {
-    type: string;
-    dimension: string;
-    capacity: string;
-    suitability: string;
-    image: string;
-    description: string;
-    benefits: string[];
-    priceRange: string;
-  }>(null);
+
+  const [structures, setStructures] = useState(allStructures);
+  const [selectedStructure, setSelectedStructure] = React.useState<null | typeof allStructures[0]>(null);
+
+  useEffect(() => {
+    let unsubUser: () => void;
+
+    const unsubAuth = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        // Subscribe to user document changes
+        unsubUser = onSnapshot(doc(firestore, "users", user.uid), async (userDoc) => {
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            const queryParams = new URLSearchParams({
+              rooftop_area_m2: String(userData.rooftop.area || 100),
+              rooftop_type: userData.rooftop.type || "concrete",
+              lat: String(userData.geopoint[0] || 11.0500),
+              lon: String(userData.geopoint[1] || 76.9000),
+            });
+
+            const response = await fetch(`http://0.0.0.0:8001/rwh-design?${queryParams}`);
+
+            if (response.ok) {
+              const data = await response.json();
+              setResult(data);
+              console.log(data);
+              // Ensure we handle if API returns explicit depth or we parse it
+              const depth = parseFloat(data.depth_m_below_ground);
+
+              // Filtering Logic
+              // if depth > 3 then recommand recharge pit and storage tank
+              // else if depth > 10 then recommand recharge shaft and recharge pits and storage tank
+              // else if depth < 3 then recommand only storage tank
+
+              let recommendedTypes: string[] = [];
+
+              if (data.groundwater.depth_m_below_ground > 10) {
+                recommendedTypes = ["Recharge Shaft", "Recharge Pit", "Storage Tank"];
+              } else if (data.groundwater.depth_m_below_ground > 3) {
+                recommendedTypes = ["Recharge Pit", "Storage Tank"];
+              } else {
+                recommendedTypes = ["Storage Tank"];
+              }
+
+              const filtered = allStructures.filter(s => recommendedTypes.includes(s.type));
+              setStructures(filtered);
+            }
+          }
+        });
+      } else {
+        // User logged out
+        setStructures(allStructures);
+        if (unsubUser) unsubUser();
+      }
+    });
+
+    return () => {
+      unsubAuth();
+      if (unsubUser) unsubUser();
+    };
+  }, []);
 
   return (
     <div className="mt-3 mb-12">
       <h4 className="text-2xl font-semibold text-teal-400 mb-6 flex items-center gap-2">
-        💧{t("rechargeStructureRecommendations")}
+        Recommended Structures
       </h4>
 
       {/* Local modal state (scoped via IIFE) */}

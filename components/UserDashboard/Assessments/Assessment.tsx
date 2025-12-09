@@ -156,12 +156,14 @@ interface ReportData {
 async function getCoordinates(cityName: string) {
   try {
     const response = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${cityName}`
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
+        cityName
+      )}&count=1&language=en&format=json`
     );
     const data = await response.json();
-    if (data.length > 0) {
-      const latitude = parseFloat(data[0].lat);
-      const longitude = parseFloat(data[0].lon);
+    if (data.results && data.results.length > 0) {
+      const latitude = data.results[0].latitude;
+      const longitude = data.results[0].longitude;
       return { latitude, longitude };
     } else {
       return null;
@@ -258,7 +260,7 @@ const Assessment = ({ rainfall }: { rainfall: number }) => {
 
         // Listen to report with maximum wait time
         const reportRef = doc(firestore, "reports", assessmentDocId);
-        let reportCheckTimeout: NodeJS.Timeout | null = null;
+        let reportCheckTimeout: ReturnType<typeof setTimeout> | null = null;
         const maxWaitTime = 10000; // 15 seconds maximum wait
         const startTime = Date.now();
 
@@ -539,34 +541,34 @@ const Assessment = ({ rainfall }: { rainfall: number }) => {
   const roofRainCaptured = sqftToM2(Number(area)) * mmToM(rainfall) * 1000;
   const feasibility = report
     ? {
-        feasible: report.category !== "Low",
-        reason: report.explanation || "Feasibility assessment in progress.",
-      }
+      feasible: report.category !== "Low",
+      reason: report.explanation || "Feasibility assessment in progress.",
+    }
     : assessmentStatus === "processing"
-    ? {
+      ? {
         feasible: false,
         reason:
           "Generating feasibility assessment... This may take a few moments.",
       }
-    : assessmentStatus === "error"
-    ? {
-        feasible: false,
-        reason:
-          errorMessage ||
-          "An error occurred while generating the assessment. Please try again.",
-      }
-    : assessmentStatus === "none"
-    ? {
-        feasible: false,
-        reason:
-          errorMessage ||
-          "Please complete your profile information to generate an assessment.",
-      }
-    : {
-        feasible: false,
-        reason:
-          "Assessment data not available. Please ensure your profile information is complete.",
-      };
+      : assessmentStatus === "error"
+        ? {
+          feasible: false,
+          reason:
+            errorMessage ||
+            "An error occurred while generating the assessment. Please try again.",
+        }
+        : assessmentStatus === "none"
+          ? {
+            feasible: false,
+            reason:
+              errorMessage ||
+              "Please complete your profile information to generate an assessment.",
+          }
+          : {
+            feasible: false,
+            reason:
+              "Assessment data not available. Please ensure your profile information is complete.",
+          };
   // if (loading && assessmentStatus === "processing") {
   //   return (
   //     <div className="p-8 relative min-h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800 flex items-center justify-center">
@@ -643,22 +645,20 @@ const Assessment = ({ rainfall }: { rainfall: number }) => {
             onClick={() => {
               switchMode("harvest");
             }}
-            className={`px-4 py-2 rounded-xl transition cursor-pointer text-md ${
-              harvestMode === "harvest"
+            className={`px-4 py-2 rounded-xl transition cursor-pointer text-md ${harvestMode === "harvest"
                 ? "text-teal-300"
                 : "text-gray-400 hover:text-teal-500"
-            }`}
+              }`}
           >
             ANALYSIS ASSESSMENT
           </button>
 
           <button
             onClick={() => switchMode("aquifer")}
-            className={`px-4 py-2 rounded-xl transition cursor-pointer text-md outline-0 ${
-              harvestMode === "aquifer"
+            className={`px-4 py-2 rounded-xl transition cursor-pointer text-md outline-0 ${harvestMode === "aquifer"
                 ? "text-teal-300"
                 : "text-gray-400 hover:text-teal-500"
-            }`}
+              }`}
           >
             GIS BASED MAP
           </button>
@@ -703,14 +703,14 @@ const Assessment = ({ rainfall }: { rainfall: number }) => {
             report={
               report
                 ? {
-                    assessmentId: report.assessmentId,
-                    avgRainfall_mm: report.avgRainfall_mm,
-                    litres_per_year: report.litres_per_year,
-                    feasibilityScore: report.feasibilityScore,
-                    category: report.category,
-                    breakdown: report.breakdown,
-                    explanation: report.explanation,
-                  }
+                  assessmentId: report.assessmentId,
+                  avgRainfall_mm: report.avgRainfall_mm,
+                  litres_per_year: report.litres_per_year,
+                  feasibilityScore: report.feasibilityScore,
+                  category: report.category,
+                  breakdown: report.breakdown,
+                  explanation: report.explanation,
+                }
                 : undefined
             }
           />
@@ -721,22 +721,20 @@ const Assessment = ({ rainfall }: { rainfall: number }) => {
               <div className="flex gap-3 mb-4 justify-evenly">
                 <button
                   onClick={() => setMode("jal")}
-                  className={`px-4 py-2 rounded-xl transition cursor-pointer text-md ${
-                    mode === "jal"
+                  className={`px-4 py-2 rounded-xl transition cursor-pointer text-md ${mode === "jal"
                       ? "text-teal-300"
                       : "text-gray-400 hover:text-teal-500"
-                  }`}
+                    }`}
                 >
                   JalYantra Mode
                 </button>
 
                 <button
                   onClick={() => getRecommendations()}
-                  className={`px-4 py-2 rounded-xl transition cursor-pointer text-md ${
-                    mode === "ai"
+                  className={`px-4 py-2 rounded-xl transition cursor-pointer text-md ${mode === "ai"
                       ? "text-teal-300"
                       : "text-gray-400 hover:text-teal-500"
-                  }`}
+                    }`}
                 >
                   AI Suggest Mode
                 </button>
@@ -749,7 +747,7 @@ const Assessment = ({ rainfall }: { rainfall: number }) => {
             {mode === "jal" && (
               <>
                 <GroundRechargeStruct />
-                <RecommendedStorageTank />
+                {/* <RecommendedStorageTank /> */}
               </>
             )}
 

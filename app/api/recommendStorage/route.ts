@@ -42,9 +42,9 @@ Rules:
     `;
 
     const genAI = new GoogleGenerativeAI(
-      "AIzaSyB7Fm_YjQ-SJZIuPH10NigNZngkzzejLik"
+      "AIzaSyCvywHliIvTX7uYHcvvDI2wKSno2ltcbwM"
     );
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
     const response = await model.generateContent(prompt);
     let raw = response.response.text() || "";

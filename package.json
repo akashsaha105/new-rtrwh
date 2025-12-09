@@ -48,6 +48,7 @@
     "openai": "^5.23.2",
     "puppeteer": "^24.22.3",
     "puppeteer-core": "^24.22.3",
+    "python3": "^0.0.1",
     "qrcode.react": "^4.2.0",
     "react": "19.1.0",
     "react-chartjs-2": "^5.3.0",
